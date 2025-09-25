@@ -1,0 +1,228 @@
+# Reusable Bicep Deployment Template
+# This template handles the deployment of Bicep templates to Azure
+
+parameters:
+  - name: azureServiceConnection
+    type: string
+    displayName: 'Azure Service Connection'
+  
+  - name: subscriptionId
+    type: string
+    displayName: 'Azure Subscription ID'
+  
+  - name: resourceGroupName
+    type: string
+    displayName: 'Resource Group Name'
+  
+  - name: location
+    type: string
+    displayName: 'Azure Region'
+    default: 'West Europe'
+  
+  - name: environmentName
+    type: string
+    displayName: 'Environment Name (dev/prod)'
+    values:
+      - dev
+      - prod
+  
+  - name: artifactName
+    type: string
+    displayName: 'Build Artifact Name'
+    default: 'bicep-templates'
+
+steps:
+  # Download build artifacts
+  - task: DownloadBuildArtifacts@1
+    displayName: 'Download Build Artifacts'
+    inputs:
+      buildType: 'current'
+      artifactName: '${{ parameters.artifactName }}'
+      downloadPath: '$(System.ArtifactsDirectory)'
+
+  # Display environment information
+  - task: AzureCLI@2
+    displayName: 'Display Deployment Information'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        echo "=== Deployment Information ==="
+        echo "Environment: ${{ parameters.environmentName }}"
+        echo "Subscription: ${{ parameters.subscriptionId }}"
+        echo "Resource Group: ${{ parameters.resourceGroupName }}"
+        echo "Location: ${{ parameters.location }}"
+        echo "Build ID: $(Build.BuildId)"
+        echo "Source Branch: $(Build.SourceBranch)"
+        echo "=============================="
+
+  # Ensure resource group exists
+  - task: AzureCLI@2
+    displayName: 'Ensure Resource Group Exists'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        echo "Checking if resource group '${{ parameters.resourceGroupName }}' exists..."
+        if ! az group show --name "${{ parameters.resourceGroupName }}" --subscription "${{ parameters.subscriptionId }}" >/dev/null 2>&1; then
+          echo "Resource group does not exist. Creating..."
+          az group create \
+            --name "${{ parameters.resourceGroupName }}" \
+            --location "${{ parameters.location }}" \
+            --subscription "${{ parameters.subscriptionId }}" \
+            --tags \
+              Environment="${{ parameters.environmentName }}" \
+              Project="avm-alz-min" \
+              ManagedBy="Azure-DevOps" \
+              CreatedDate="$(date +%Y-%m-%d)"
+          echo "Resource group created successfully."
+        else
+          echo "Resource group already exists."
+        fi
+
+  # Run What-If analysis
+  - task: AzureCLI@2
+    displayName: 'Run What-If Analysis'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        echo "Running What-If analysis..."
+        cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"
+        
+        # Create environment-specific parameters
+        cat > temp-parameters.json << EOF
+        {
+          "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "namePrefix": {
+              "value": "kv-${{ parameters.environmentName }}"
+            }
+          }
+        }
+        EOF
+        
+        # Run what-if
+        az deployment group what-if \
+          --resource-group "${{ parameters.resourceGroupName }}" \
+          --template-file "infra/main.bicep" \
+          --parameters temp-parameters.json \
+          --subscription "${{ parameters.subscriptionId }}" \
+          --name "deployment-$(Build.BuildId)"
+
+  # Deploy Bicep template
+  - task: AzureCLI@2
+    displayName: 'Deploy Bicep Template'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        echo "Starting deployment..."
+        cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"
+        
+        # Create environment-specific parameters
+        cat > temp-parameters.json << EOF
+        {
+          "\$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "namePrefix": {
+              "value": "kv-${{ parameters.environmentName }}"
+            }
+          }
+        }
+        EOF
+        
+        # Deploy template
+        DEPLOYMENT_NAME="deployment-$(Build.BuildId)-${{ parameters.environmentName }}"
+        echo "Deployment name: $DEPLOYMENT_NAME"
+        
+        az deployment group create \
+          --resource-group "${{ parameters.resourceGroupName }}" \
+          --template-file "infra/main.bicep" \
+          --parameters temp-parameters.json \
+          --subscription "${{ parameters.subscriptionId }}" \
+          --name "$DEPLOYMENT_NAME" \
+          --verbose
+        
+        echo "Deployment completed successfully!"
+
+  # Post-deployment validation
+  - task: AzureCLI@2
+    displayName: 'Post-Deployment Validation'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        echo "=== Post-Deployment Validation ==="
+        
+        # Get deployment details
+        DEPLOYMENT_NAME="deployment-$(Build.BuildId)-${{ parameters.environmentName }}"
+        echo "Checking deployment: $DEPLOYMENT_NAME"
+        
+        DEPLOYMENT_STATUS=$(az deployment group show \
+          --resource-group "${{ parameters.resourceGroupName }}" \
+          --name "$DEPLOYMENT_NAME" \
+          --query "properties.provisioningState" \
+          --output tsv)
+        
+        echo "Deployment Status: $DEPLOYMENT_STATUS"
+        
+        if [ "$DEPLOYMENT_STATUS" = "Succeeded" ]; then
+          echo "✅ Deployment successful!"
+          
+          # Get Key Vault name from deployment outputs
+          KV_NAME=$(az deployment group show \
+            --resource-group "${{ parameters.resourceGroupName }}" \
+            --name "$DEPLOYMENT_NAME" \
+            --query "properties.outputs.keyVaultName.value" \
+            --output tsv)
+          
+          echo "Key Vault Name: $KV_NAME"
+          
+          # Validate Key Vault accessibility
+          if az keyvault show --name "$KV_NAME" --resource-group "${{ parameters.resourceGroupName }}" >/dev/null 2>&1; then
+            echo "✅ Key Vault is accessible"
+            
+            # Get Key Vault properties
+            KV_URI=$(az keyvault show \
+              --name "$KV_NAME" \
+              --resource-group "${{ parameters.resourceGroupName }}" \
+              --query "properties.vaultUri" \
+              --output tsv)
+            
+            echo "Key Vault URI: $KV_URI"
+            echo "✅ Validation completed successfully!"
+            
+            # Set pipeline variables for downstream tasks
+            echo "##vso[task.setvariable variable=keyVaultName;isOutput=true]$KV_NAME"
+            echo "##vso[task.setvariable variable=keyVaultUri;isOutput=true]$KV_URI"
+            
+          else
+            echo "❌ Key Vault validation failed"
+            exit 1
+          fi
+        else
+          echo "❌ Deployment failed with status: $DEPLOYMENT_STATUS"
+          exit 1
+        fi
+
+  # Clean up temporary files
+  - task: AzureCLI@2
+    displayName: 'Clean Up'
+    inputs:
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
+      inlineScript: |
+        echo "Cleaning up temporary files..."
+        cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"
+        rm -f temp-parameters.json
+        echo "Clean up completed."
+    condition: always()
