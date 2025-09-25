@@ -1,0 +1,75 @@
+# Azure CLI
+.azure/
+
+# Bicep/ARM generated files
+*.json
+!*parameters*.json
+!package*.json
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# JetBrains IDEs
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Windows
+*.log
+*.tmp
+*.temp
+
+# Azure DevOps
+.vs/
+
+# Terraform (if used alongside)
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node modules (if any frontend tooling is added)
+node_modules/
+npm-debug.log*
+
+# Python (if any scripts are added)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage reports
+coverage/
+*.lcov
+
+# Build artifacts
+dist/
+build/
