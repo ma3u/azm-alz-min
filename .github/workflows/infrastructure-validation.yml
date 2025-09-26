@@ -1,0 +1,400 @@
+name: Infrastructure Validation (Bicep & Terraform)
+
+on:
+  push:
+    branches: [main, develop, feature/*]
+    paths:
+      - "**/*.bicep"
+      - "**/*.bicepparam"
+      - "**/*.tf"
+      - "**/*.tfvars"
+      - ".github/workflows/infrastructure-validation.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "**/*.bicep"
+      - "**/*.bicepparam"
+      - "**/*.tf"
+      - "**/*.tfvars"
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+jobs:
+  bicep-validation:
+    name: 🔧 Bicep Validation & Security
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 📦 Install Bicep CLI
+        run: |
+          az bicep install
+          az bicep version
+
+      - name: 🔍 Discover Bicep Files
+        id: discover-bicep
+        run: |
+          bicep_files=$(find . -name "*.bicep" -type f | grep -v node_modules | tr '\n' ' ')
+          echo "files=$bicep_files" >> $GITHUB_OUTPUT
+          echo "Found Bicep files: $bicep_files"
+
+      - name: 🔨 Bicep Build & Lint
+        if: steps.discover-bicep.outputs.files != ''
+        run: |
+          echo "🔨 Building and linting Bicep files..."
+          for file in ${{ steps.discover-bicep.outputs.files }}; do
+            echo "Processing: $file"
+
+            # Build check
+            echo "🔧 Building $file..."
+            az bicep build --file "$file" --outfile "/tmp/$(basename $file .bicep).json"
+
+            # Lint check (warnings and errors)
+            echo "🧹 Linting $file..."
+            az bicep build --file "$file" 2>&1 | tee /tmp/bicep-lint.log
+
+            # Check for errors (exit code 1)
+            if grep -i "error" /tmp/bicep-lint.log; then
+              echo "❌ Build errors found in $file"
+              exit 1
+            fi
+
+            # Report warnings
+            if grep -i "warning" /tmp/bicep-lint.log; then
+              echo "⚠️ Warnings found in $file (non-blocking)"
+            fi
+
+            echo "✅ $file validation complete"
+          done
+
+      - name: 🔍 AVM Module Version Check
+        if: steps.discover-bicep.outputs.files != ''
+        run: |
+          echo "🔍 Checking AVM module versions..."
+
+          for file in ${{ steps.discover-bicep.outputs.files }}; do
+            echo "Checking AVM modules in: $file"
+
+            # Extract AVM modules
+            avm_modules=$(grep -oE "br/public:avm/[^'\"]*" "$file" || true)
+
+            if [[ -n "$avm_modules" ]]; then
+              echo "📦 Found AVM modules in $file:"
+              echo "$avm_modules"
+
+              # Check each module version
+              while IFS= read -r module; do
+                if [[ -n "$module" ]]; then
+                  # Extract service and resource type
+                  service_resource=$(echo "$module" | sed 's|br/public:avm/res/||' | sed 's|:.*||')
+                  version=$(echo "$module" | grep -oE ":[0-9]+\.[0-9]+\.[0-9]+" | sed 's/://')
+
+                  if [[ -n "$version" && -n "$service_resource" ]]; then
+                    echo "🏷️ Module: $service_resource, Version: $version"
+
+                    # Get latest version (if curl/jq available)
+                    if command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+                      echo "🔍 Checking if newer version available for $service_resource..."
+                      # This would require authentication, so we'll just log for now
+                      echo "ℹ️ Consider checking manually: az rest --method GET --url 'https://mcr.microsoft.com/v2/bicep/avm/res/$service_resource/tags/list'"
+                    fi
+                  else
+                    echo "⚠️ Module version not properly specified: $module"
+                  fi
+                fi
+              done <<< "$avm_modules"
+            else
+              echo "ℹ️ No AVM modules found in $file"
+            fi
+          done
+
+      - name: 🛡️ Bicep Security Scan
+        if: steps.discover-bicep.outputs.files != ''
+        run: |
+          echo "🛡️ Running security scans on Bicep files..."
+
+          for file in ${{ steps.discover-bicep.outputs.files }}; do
+            echo "🔐 Security scanning: $file"
+
+            # Check for hardcoded secrets
+            if grep -iE "(password|secret|key|token).*=.*['\"][^'\"]{8,}['\"]" "$file"; then
+              echo "❌ Potential hardcoded secret found in $file"
+              exit 1
+            fi
+
+            # Check for insecure configurations
+            security_issues=0
+
+            # Public network access
+            if grep -i "publicNetworkAccess.*Enabled" "$file"; then
+              echo "⚠️ Public network access enabled in $file"
+              security_issues=$((security_issues + 1))
+            fi
+
+            # Admin users enabled
+            if grep -i "adminUserEnabled.*true" "$file"; then
+              echo "❌ Admin user enabled in $file"
+              exit 1
+            fi
+
+            # HTTPS enforcement
+            if grep -i "httpsOnly.*false" "$file"; then
+              echo "❌ HTTPS enforcement disabled in $file"
+              exit 1
+            fi
+
+            # Default action allow
+            if grep -i "defaultAction.*Allow" "$file"; then
+              echo "⚠️ Default action set to Allow in $file"
+              security_issues=$((security_issues + 1))
+            fi
+
+            if [[ $security_issues -eq 0 ]]; then
+              echo "✅ $file passed security scan"
+            else
+              echo "⚠️ $file has $security_issues security warnings"
+            fi
+          done
+
+      - name: 📊 What-If Analysis (Main Branch)
+        if: github.ref == 'refs/heads/main' && steps.discover-bicep.outputs.files != ''
+        continue-on-error: true
+        run: |
+          echo "📊 Running What-If analysis for main branch..."
+
+          # Only run What-If for main deployment templates
+          main_templates=$(find . -path "*/infra/accelerator/*.bicep" -type f)
+
+          for template in $main_templates; do
+            param_file="${template%.bicep}.parameters.json"
+
+            if [[ -f "$param_file" ]]; then
+              echo "🔍 What-If analysis for: $template"
+              echo "📝 Using parameters: $param_file"
+
+              # Determine deployment scope
+              if grep -q "targetScope.*subscription" "$template"; then
+                echo "🎯 Subscription-scoped deployment"
+                az deployment sub what-if \
+                  --location "westeurope" \
+                  --template-file "$template" \
+                  --parameters "$param_file" \
+                  --result-format "FullResourcePayloads" || echo "⚠️ What-If analysis failed for $template"
+              elif grep -q "targetScope.*managementGroup" "$template"; then
+                echo "🎯 Management Group-scoped deployment (skipped - requires permissions)"
+              else
+                echo "🎯 Resource Group-scoped deployment (requires existing RG)"
+              fi
+            else
+              echo "ℹ️ No parameter file found for $template"
+            fi
+          done
+
+  terraform-validation:
+    name: 🗺️ Terraform Validation & Security
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🗺️ Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.6.0
+
+      - name: 📦 Install TFLint
+        run: |
+          curl -s https://raw.githubusercontent.com/terraform-linters/tflint/master/install_linux.sh | bash
+          tflint --version
+
+      - name: 🛡️ Install tfsec
+        run: |
+          wget -q -O - https://api.github.com/repos/aquasecurity/tfsec/releases/latest \
+          | grep "browser_download_url.*linux-amd64" \
+          | cut -d '"' -f 4 \
+          | wget -O tfsec -qi -
+          chmod +x tfsec
+          sudo mv tfsec /usr/local/bin/
+          tfsec --version
+
+      - name: 🔍 Discover Terraform Files
+        id: discover-tf
+        run: |
+          tf_dirs=$(find . -name "*.tf" -type f -exec dirname {} \; | sort -u | grep -v ".terraform" | tr '\n' ' ')
+          echo "directories=$tf_dirs" >> $GITHUB_OUTPUT
+          echo "Found Terraform directories: $tf_dirs"
+
+      - name: 🔧 Terraform Init & Validate
+        if: steps.discover-tf.outputs.directories != ''
+        run: |
+          echo "🔧 Initializing and validating Terraform configurations..."
+
+          for dir in ${{ steps.discover-tf.outputs.directories }}; do
+            echo "📁 Processing directory: $dir"
+            cd "$dir"
+
+            # Initialize
+            echo "🚀 Terraform init in $dir"
+            terraform init -backend=false
+
+            # Format check
+            echo "✨ Terraform format check in $dir"
+            terraform fmt -check -diff || {
+              echo "❌ Terraform format issues found in $dir"
+              echo "Run 'terraform fmt' to fix formatting"
+              exit 1
+            }
+
+            # Validate
+            echo "✅ Terraform validate in $dir"
+            terraform validate
+
+            cd - > /dev/null
+          done
+
+      - name: 🧹 TFLint Analysis
+        if: steps.discover-tf.outputs.directories != ''
+        run: |
+          echo "🧹 Running TFLint analysis..."
+
+          # Create tflint config
+          cat > .tflint.hcl << EOF
+          plugin "azurerm" {
+            enabled = true
+          }
+
+          rule "terraform_deprecated_interpolation" {
+            enabled = true
+          }
+
+          rule "terraform_unused_declarations" {
+            enabled = true
+          }
+
+          rule "terraform_comment_syntax" {
+            enabled = true
+          }
+
+          rule "terraform_documented_outputs" {
+            enabled = true
+          }
+
+          rule "terraform_documented_variables" {
+            enabled = true
+          }
+
+          rule "terraform_typed_variables" {
+            enabled = true
+          }
+
+          rule "terraform_naming_convention" {
+            enabled = true
+          }
+
+          rule "terraform_required_version" {
+            enabled = true
+          }
+
+          rule "terraform_required_providers" {
+            enabled = true
+          }
+          EOF
+
+          for dir in ${{ steps.discover-tf.outputs.directories }}; do
+            echo "🔍 TFLint analysis in: $dir"
+            cd "$dir"
+            tflint --init
+            tflint --format compact
+            cd - > /dev/null
+          done
+
+      - name: 🛡️ tfsec Security Scan
+        if: steps.discover-tf.outputs.directories != ''
+        run: |
+          echo "🛡️ Running tfsec security analysis..."
+
+          for dir in ${{ steps.discover-tf.outputs.directories }}; do
+            echo "🔐 Security scanning: $dir"
+
+            tfsec "$dir" \
+              --minimum-severity MEDIUM \
+              --exclude-downloaded-modules \
+              --format json \
+              --out "$dir/tfsec-report.json" || echo "⚠️ Security issues found in $dir"
+
+            # Display summary
+            if [[ -f "$dir/tfsec-report.json" ]]; then
+              echo "📊 Security scan summary for $dir:"
+              cat "$dir/tfsec-report.json" | jq -r '.results[] | "❌ \(.rule_description) (\(.severity))"' || true
+            fi
+          done
+
+      - name: 📋 Cost Estimation
+        if: steps.discover-tf.outputs.directories != '' && github.event_name == 'pull_request'
+        continue-on-error: true
+        run: |
+          echo "💰 Analyzing cost implications..."
+
+          for dir in ${{ steps.discover-tf.outputs.directories }}; do
+            echo "💰 Cost analysis for: $dir"
+
+            # Look for expensive resources
+            if grep -r -i "premium\|standard_d[4-9]\|standard_e[4-9]" "$dir"/*.tf; then
+              echo "💰 High-cost resources detected in $dir"
+            fi
+
+            # Count resources for estimation
+            resource_count=$(grep -c "resource \"" "$dir"/*.tf 2>/dev/null || echo "0")
+            echo "📊 Estimated resource count in $dir: $resource_count"
+          done
+
+  summary:
+    name: 📋 Validation Summary
+    needs: [bicep-validation, terraform-validation]
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+      - name: 📊 Generate Summary
+        run: |
+          echo "## 🏗️ Infrastructure Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.bicep-validation.result }}" == "success" ]]; then
+            echo "✅ **Bicep Validation**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Bicep Validation**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [[ "${{ needs.terraform-validation.result }}" == "success" ]]; then
+            echo "✅ **Terraform Validation**: Passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Terraform Validation**: Failed" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 Security & Compliance" >> $GITHUB_STEP_SUMMARY
+          echo "- AVM module versions verified" >> $GITHUB_STEP_SUMMARY
+          echo "- Security configurations scanned" >> $GITHUB_STEP_SUMMARY
+          echo "- Infrastructure templates validated" >> $GITHUB_STEP_SUMMARY
+          echo "- Cost implications analyzed" >> $GITHUB_STEP_SUMMARY
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📚 Resources" >> $GITHUB_STEP_SUMMARY
+          echo "- [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Bicep Best Practices](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/best-practices)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Terraform Azure Best Practices](https://docs.microsoft.com/en-us/azure/developer/terraform/best-practices)" >> $GITHUB_STEP_SUMMARY

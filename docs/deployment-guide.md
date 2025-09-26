@@ -5,6 +5,7 @@ This comprehensive guide walks you through deploying the Azure Landing Zone infr
 ## 🎯 Overview
 
 This deployment guide covers:
+
 - **Pre-deployment preparation and validation**
 - **Step-by-step deployment process**
 - **Post-deployment configuration and validation**
@@ -15,23 +16,27 @@ This deployment guide covers:
 ## 📋 Prerequisites Checklist
 
 ### Azure Environment
+
 - [ ] **Azure Subscription**: Active subscription with Contributor permissions
 - [ ] **Resource Provider Registration**: Ensure Microsoft.KeyVault provider is registered
 - [ ] **Subscription Limits**: Verify Key Vault quota availability in target region
 - [ ] **Azure CLI**: Version 2.37.0 or later installed and configured
 
 ### Development Environment
+
 - [ ] **Git**: Version control system installed
 - [ ] **Code Editor**: VS Code with Bicep extension recommended
 - [ ] **PowerShell/Bash**: Command line interface available
 - [ ] **Network Access**: Unrestricted access to Azure APIs
 
 ### GitHub Setup
+
 - [ ] **GitHub Account**: Access to ma3u/azm-alz-min repository
 - [ ] **Personal Access Token**: For repository access if private operations needed
 - [ ] **Local Git Configuration**: User name and email configured
 
 ### Azure DevOps Setup (Optional but Recommended)
+
 - [ ] **Azure DevOps Organization**: Access to matthiasbuchhorn organization
 - [ ] **Project Access**: Permission to avm-alz-min project
 - [ ] **Service Principal**: Created for automated deployments
@@ -110,16 +115,17 @@ Review and customize the parameter file for your environment:
   "contentVersion": "1.0.0.0",
   "parameters": {
     "namePrefix": {
-      "value": "kv-yourorg"  // Customize this prefix
+      "value": "kv-yourorg" // Customize this prefix
     },
     "location": {
-      "value": "West Europe"  // Change if different region needed
+      "value": "West Europe" // Change if different region needed
     }
   }
 }
 ```
 
 **Parameter Guidelines:**
+
 - `namePrefix`: 2-10 characters, alphanumeric only
 - Combined name must be ≤24 characters total
 - Choose region based on compliance requirements
@@ -405,13 +411,13 @@ Update the pipeline variables file:
 # pipelines/variables/common.yml
 variables:
   - name: azureSubscriptionId
-    value: 'your-actual-subscription-id'
-  
+    value: "your-actual-subscription-id"
+
   - name: azureRegion
-    value: 'West Europe'
-  
+    value: "West Europe"
+
   - name: resourceGroupPrefix
-    value: 'rg-avm-alz-min'
+    value: "rg-avm-alz-min"
 ```
 
 ## 🧪 Phase 7: Testing and Validation
@@ -462,7 +468,7 @@ fi
 
 # Test 4: Secret operations
 echo "Test 4: Testing secret operations..."
-TEST_SECRET_NAME="validation-test-$(date +%s)"
+TEST_SECRET_NAME="validation-test-$(date +%s)" # pragma: allowlist secret
 if az keyvault secret set --vault-name $KV_NAME --name $TEST_SECRET_NAME --value "test-value" >/dev/null 2>&1; then
     echo "✅ Secret creation successful"
     az keyvault secret delete --vault-name $KV_NAME --name $TEST_SECRET_NAME >/dev/null 2>&1
@@ -496,11 +502,13 @@ done
 ### Common Issues and Solutions
 
 #### 1. **Key Vault Name Already Exists**
+
 ```
 Error: The vault name 'kv-lz-xyz' is not available
 ```
 
 **Solution:**
+
 ```bash
 # Check if name is globally unique
 az keyvault list --query "[?name=='kv-lz-xyz']" --output table
@@ -513,11 +521,13 @@ az keyvault purge --name kv-lz-xyz --location westeurope
 ```
 
 #### 2. **Insufficient Permissions**
+
 ```
 Error: The user or application does not have authorization to perform action
 ```
 
 **Solution:**
+
 ```bash
 # Check current role assignments
 az role assignment list --assignee $(az account show --query user.name -o tsv) --output table
@@ -530,11 +540,13 @@ az role assignment create \
 ```
 
 #### 3. **Resource Provider Not Registered**
+
 ```
 Error: The subscription is not registered to use namespace 'Microsoft.KeyVault'
 ```
 
 **Solution:**
+
 ```bash
 # Register the resource provider
 az provider register --namespace Microsoft.KeyVault
@@ -544,11 +556,13 @@ az provider show --namespace Microsoft.KeyVault --query "registrationState" -o t
 ```
 
 #### 4. **Template Validation Errors**
+
 ```
 Error: Template validation failed
 ```
 
 **Solution:**
+
 ```bash
 # Check template syntax
 az bicep build --file infra/main.bicep
@@ -566,16 +580,19 @@ az deployment group validate \
 ### Deployment Best Practices
 
 1. **Always Use What-If Analysis**
+
    - Preview changes before deployment
    - Understand resource modifications
    - Catch potential issues early
 
 2. **Implement Proper Naming Conventions**
+
    - Use consistent prefixes
    - Include environment indicators
    - Follow Azure naming guidelines
 
 3. **Tag Resources Appropriately**
+
    ```bash
    # Example tagging strategy
    --tags \
@@ -594,12 +611,14 @@ az deployment group validate \
 ### Security Best Practices
 
 1. **Enable All Security Features**
+
    - Soft delete and purge protection
    - RBAC authorization
    - Network access restrictions
    - Diagnostic logging
 
 2. **Implement Least Privilege Access**
+
    - Use specific Key Vault roles
    - Avoid blanket permissions
    - Regular access reviews
@@ -612,11 +631,13 @@ az deployment group validate \
 ### Operational Best Practices
 
 1. **Document Everything**
+
    - Keep deployment procedures updated
    - Document custom configurations
    - Maintain architecture diagrams
 
 2. **Automate Where Possible**
+
    - Use CI/CD pipelines
    - Implement infrastructure as code
    - Automate compliance checking
@@ -629,6 +650,7 @@ az deployment group validate \
 ## 🎯 Production Readiness Checklist
 
 ### Pre-Production Checklist
+
 - [ ] **Security Review**: All security features enabled and configured
 - [ ] **Compliance Check**: Meets organizational compliance requirements
 - [ ] **Performance Testing**: Response times within acceptable limits
@@ -637,6 +659,7 @@ az deployment group validate \
 - [ ] **Documentation**: Complete deployment and operational documentation
 
 ### Production Deployment Checklist
+
 - [ ] **Change Management**: Proper approval processes followed
 - [ ] **Maintenance Window**: Deployment scheduled during approved window
 - [ ] **Rollback Plan**: Tested rollback procedures available

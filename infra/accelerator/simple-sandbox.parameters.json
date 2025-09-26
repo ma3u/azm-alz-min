@@ -1,0 +1,30 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westeurope"
+    },
+    "environment": {
+      "value": "sandbox"
+    },
+    "organizationPrefix": {
+      "value": "alz"
+    },
+    "hubVnetAddressSpace": {
+      "value": "10.0.0.0/16"
+    },
+    "spokeVnetAddressSpace": {
+      "value": "10.1.0.0/16"
+    },
+    "enableBastion": {
+      "value": false
+    },
+    "enableAppWorkloads": {
+      "value": true
+    },
+    "enableContainerRegistry": {
+      "value": true
+    }
+  }
+}

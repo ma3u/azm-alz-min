@@ -119,7 +119,7 @@ module virtualNetworkDeployment 'br/public:avm/res/network/virtual-network:0.1.6
     name: virtualNetworkName
     location: location
     addressPrefixes: [virtualNetworkAddressPrefix]
-    
+
     subnets: [
       {
         name: 'subnet-keyvault'
@@ -141,7 +141,7 @@ module virtualNetworkDeployment 'br/public:avm/res/network/virtual-network:0.1.6
         addressPrefix: '10.0.10.0/24'
       }
     ]
-    
+
     tags: commonTags
   }
   dependsOn: [
@@ -161,14 +161,14 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
     // Required parameters
     name: keyVaultName
     location: location
-    
+
     // Security configuration
     enableRbacAuthorization: true
     enableSoftDelete: true
     enablePurgeProtection: environment == 'prod'
     softDeleteRetentionInDays: 90
     sku: 'premium'
-    
+
     // Network configuration
     networkAcls: {
       bypass: 'AzureServices'
@@ -179,7 +179,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
         }
       ]
     }
-    
+
     // Private endpoint configuration (when VNet is enabled)
     privateEndpoints: enablePrivateEndpoint && virtualNetworkEnabled ? [
       {
@@ -187,7 +187,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
         tags: commonTags
       }
     ] : []
-    
+
     // Diagnostic settings
     diagnosticSettings: enableDiagnostics ? [
       {
@@ -205,7 +205,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
         ]
       }
     ] : []
-    
+
     // Resource tagging
     tags: commonTags
   }

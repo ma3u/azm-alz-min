@@ -85,7 +85,7 @@ module virtualNetworkDeployment 'br/public:avm/res/network/virtual-network:0.1.6
     name: virtualNetworkName
     location: location
     addressPrefixes: [virtualNetworkAddressPrefix]
-    
+
     subnets: [
       {
         name: 'subnet-keyvault'
@@ -107,7 +107,7 @@ module virtualNetworkDeployment 'br/public:avm/res/network/virtual-network:0.1.6
         addressPrefix: '10.0.10.0/24'
       }
     ]
-    
+
     tags: commonTags
   }
 }
@@ -141,14 +141,14 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
     // Required parameters
     name: keyVaultName
     location: location
-    
+
     // Security configuration
     enableRbacAuthorization: true
     enableSoftDelete: true
     enablePurgeProtection: false // Disabled for sandbox to allow cleanup
     softDeleteRetentionInDays: 7 // Minimum for sandbox
     sku: 'standard' // Standard SKU for sandbox testing
-    
+
     // Network configuration
     networkAcls: {
       bypass: 'AzureServices'
@@ -159,7 +159,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
         }
       ]
     }
-    
+
     // Private endpoint configuration (when VNet is enabled)
     privateEndpoints: enablePrivateEndpoint && virtualNetworkEnabled ? [
       {
@@ -167,7 +167,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
         tags: commonTags
       }
     ] : []
-    
+
     // Diagnostic settings
     diagnosticSettings: enableDiagnostics ? [
       {
@@ -186,10 +186,10 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
         ]
       }
     ] : []
-    
+
     // Role assignments
     roleAssignments: roleAssignments
-    
+
     // Resource tagging
     tags: commonTags
   }
@@ -247,8 +247,8 @@ output tags object = commonTags
 output testingInstructions object = {
   description: 'Instructions for testing the deployed infrastructure'
   keyVaultTesting: keyVaultEnabled ? {
-    testSecretCommand: 'az keyvault secret show --vault-name ${keyVault.outputs.name} --name sandbox-test-secret'
-    setSecretCommand: 'az keyvault secret set --vault-name ${keyVault.outputs.name} --name test-secret --value "test-value"'
+    testSecretCommand: 'az keyvault secret show --vault-name ${keyVault.outputs.name} --name sandbox-test-secret' // pragma: allowlist secret
+    setSecretCommand: 'az keyvault secret set --vault-name ${keyVault.outputs.name} --name test-secret --value "test-value"' // pragma: allowlist secret
     listSecretsCommand: 'az keyvault secret list --vault-name ${keyVault.outputs.name}'
   } : {}
   networkTesting: virtualNetworkEnabled ? {

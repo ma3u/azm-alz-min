@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westeurope"
+    },
+    "environment": {
+      "value": "sandbox"
+    },
+    "organizationPrefix": {
+      "value": "alz"
+    },
+    "managementGroupId": {
+      "value": "alz-landingzones"
+    },
+    "billingScope": {
+      "value": "/providers/Microsoft.Billing/billingAccounts/{billingAccount}/enrollmentAccounts/{enrollmentAccount}"
+    },
+    "hubVnetAddressSpace": {
+      "value": "10.0.0.0/16"
+    },
+    "spokeVnetAddressSpace": {
+      "value": "10.1.0.0/16"
+    },
+    "enableAzureFirewall": {
+      "value": true
+    },
+    "enableBastion": {
+      "value": true
+    },
+    "enableVpnGateway": {
+      "value": false
+    },
+    "enableExpressRouteGateway": {
+      "value": false
+    },
+    "dbAdministratorPassword": {
+      "value": "TempPassword123!"
+    },
+    "applicationWorkloads": {
+      "value": {
+        "enableWebApp": true,
+        "enableContainerApps": true,
+        "enablePostgreSQL": true,
+        "enableStorage": true,
+        "enableAppGateway": true
+      }
+    }
+  }
+}

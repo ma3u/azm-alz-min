@@ -6,7 +6,7 @@ variable "environment" {
   description = "The environment name for resource tagging and naming"
   type        = string
   default     = "dev"
-  
+
   validation {
     condition     = contains(["dev", "test", "prod"], var.environment)
     error_message = "Environment must be one of: dev, test, prod."
@@ -17,7 +17,7 @@ variable "workload_name" {
   description = "The workload name for resource tagging"
   type        = string
   default     = "landingzone"
-  
+
   validation {
     condition     = can(regex("^[a-z0-9]{1,10}$", var.workload_name))
     error_message = "Workload name must be 1-10 characters, lowercase letters and numbers only."
@@ -41,7 +41,7 @@ variable "virtual_network_address_prefix" {
   description = "The address prefix for the Virtual Network"
   type        = string
   default     = "10.0.0.0/16"
-  
+
   validation {
     condition     = can(cidrhost(var.virtual_network_address_prefix, 0))
     error_message = "Virtual network address prefix must be a valid CIDR block."
@@ -59,7 +59,7 @@ variable "key_vault_name_prefix" {
   description = "The name prefix for the Key Vault"
   type        = string
   default     = "kv-avm-lz"
-  
+
   validation {
     condition     = can(regex("^[a-zA-Z][a-zA-Z0-9-]{1,10}$", var.key_vault_name_prefix))
     error_message = "Key Vault name prefix must start with a letter, be 2-11 characters, and contain only letters, numbers, and hyphens."
@@ -87,13 +87,13 @@ variable "role_assignments" {
     description          = string
   }))
   default = []
-  
+
   validation {
     condition = alltrue([
-      for ra in var.role_assignments : 
+      for ra in var.role_assignments :
       contains([
         "Key Vault Administrator",
-        "Key Vault Certificates Officer", 
+        "Key Vault Certificates Officer",
         "Key Vault Crypto Officer",
         "Key Vault Crypto Service Encryption User",
         "Key Vault Crypto User",

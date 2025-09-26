@@ -1,0 +1,54 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westeurope"
+    },
+    "environment": {
+      "value": "sandbox"
+    },
+    "organizationPrefix": {
+      "value": "alz"
+    },
+    "hubVnetAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "spokeVnetAddressPrefix": {
+      "value": "10.1.0.0/16"
+    },
+    "enableFirewall": {
+      "value": false
+    },
+    "enableBastion": {
+      "value": false
+    },
+    "enableDnsResolver": {
+      "value": false
+    },
+    "enableAppGateway": {
+      "value": true
+    },
+    "enableWebApps": {
+      "value": true
+    },
+    "enableContainerApps": {
+      "value": true
+    },
+    "enablePostgreSQL": {
+      "value": true
+    },
+    "enableStorage": {
+      "value": true
+    },
+    "firewallSkuTier": {
+      "value": "Standard"
+    },
+    "dbAdministratorLogin": {
+      "value": "alzadmin"
+    },
+    "dbAdministratorPassword": {
+      "value": "TempPassword123!"
+    }
+  }
+}

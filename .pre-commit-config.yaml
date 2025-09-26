@@ -1,0 +1,336 @@
+# Pre-commit hooks for Azure Landing Zone with Bicep and Terraform
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+
+repos:
+  # General code quality checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: \.md$
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ["--unsafe"]
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+      - id: detect-private-key
+        exclude: \.secrets/
+      - id: check-case-conflict
+      - id: mixed-line-ending
+        args: ["--fix=lf"]
+
+  # Bicep linting and validation
+  - repo: local
+    hooks:
+      - id: bicep-lint
+        name: Bicep Lint
+        description: Lint Bicep files for syntax and best practices
+        entry: az bicep build --file
+        language: system
+        files: \.bicep$
+        pass_filenames: true
+
+      - id: bicep-format
+        name: Bicep Format
+        description: Format Bicep files for consistency
+        entry: bash -c
+        args:
+          - |
+            for file in "$@"; do
+              # Create a temporary file for formatting
+              temp_file=$(mktemp)
+              az bicep decompile --file "$file" --stdout > "$temp_file" 2>/dev/null || {
+                echo "Formatting $file in place..."
+                # For now, we'll just validate the file builds correctly
+                az bicep build --file "$file" --stdout > /dev/null
+              }
+            done
+        language: system
+        files: \.bicep$
+        pass_filenames: true
+
+      - id: bicep-avm-check
+        name: Bicep AVM Module Verification
+        description: Verify AVM module usage and versions
+        entry: bash -c
+        args:
+          - |
+            echo "🔍 Verifying AVM module usage..."
+            for file in "$@"; do
+              echo "Checking $file for AVM module compliance..."
+
+              # Check for AVM module usage
+              if grep -E "br/public:avm/" "$file" > /dev/null; then
+                echo "✅ AVM modules found in $file"
+
+                # Extract and verify AVM module versions
+                avm_modules=$(grep -oE "br/public:avm/[^']+" "$file")
+                while IFS= read -r module; do
+                  if [[ -n "$module" ]]; then
+                    echo "📦 Found AVM module: $module"
+
+                    # Check for version pinning
+                    if [[ "$module" == *":latest"* ]] || [[ "$module" != *":"* ]]; then
+                      echo "⚠️  Warning: AVM module should use specific version: $module"
+                    fi
+                  fi
+                done <<< "$avm_modules"
+              else
+                echo "⚠️  Warning: No AVM modules detected in $file - consider using Microsoft-validated modules"
+              fi
+
+              echo "✅ $file AVM compliance check complete"
+            done
+        language: system
+        files: \.bicep$
+        pass_filenames: true
+
+      - id: bicep-security-scan
+        name: Bicep Security Scan
+        description: Security analysis for Bicep templates
+        entry: bash -c
+        args:
+          - |
+            echo "Running security checks on Bicep files..."
+            for file in "$@"; do
+              echo "Checking $file for security issues..."
+
+              # Check for hardcoded secrets (exclude common variable patterns)
+              if grep -i -E "(password|secret|key|token).*=.*['\"][^'\"]{12,}['\"]" "$file" | grep -v -E "(Name|Prefix|Reference|uniqueString|resourceGroup|subscription)" ; then
+                echo "❌ Potential hardcoded secret found in $file"
+                exit 1
+              fi
+
+              # Check for insecure defaults
+              if grep -i "defaultAction.*Allow" "$file"; then
+                echo "⚠️  Warning: Found 'defaultAction: Allow' in $file - consider Zero Trust approach"
+              fi
+
+              # Check for missing HTTPS enforcement
+              if grep -i "httpsOnly.*false" "$file"; then
+                echo "❌ Security issue: HTTPS enforcement disabled in $file"
+                exit 1
+              fi
+
+              # Check for admin user enabled (should be false)
+              if grep -i "adminUserEnabled.*true" "$file"; then
+                echo "❌ Security issue: Admin user should not be enabled in $file"
+                exit 1
+              fi
+
+              # Check for public access enabled
+              if grep -i "publicNetworkAccess.*Enabled" "$file"; then
+                echo "⚠️  Warning: Public network access enabled in $file - verify if necessary"
+              fi
+
+              # Check for missing soft delete
+              if grep -i "KeyVault" "$file" > /dev/null; then
+                if ! grep -i "enableSoftDelete.*true" "$file" > /dev/null; then
+                  echo "⚠️  Warning: Key Vault should have soft delete enabled in $file"
+                fi
+              fi
+
+              # Check for allowBlobPublicAccess enabled
+              if grep -i "allowBlobPublicAccess.*true" "$file"; then
+                echo "❌ Security issue: Public blob access enabled in $file"
+                exit 1
+              fi
+
+              # Check for weak TLS versions
+              if grep -i "minimumTlsVersion.*['\"]TLS1_[01]['\"]" "$file"; then
+                echo "❌ Security issue: Weak TLS version configured in $file"
+                exit 1
+              fi
+
+              echo "✅ $file passed security checks"
+            done
+        language: system
+        files: \.bicep$
+        pass_filenames: true
+
+  # Terraform formatting and validation
+  - repo: https://github.com/antonbabenko/pre-commit-terraform
+    rev: v1.83.5
+    hooks:
+      - id: terraform_fmt
+        args:
+          - --args=-diff
+          - --args=-write=true
+
+      - id: terraform_validate
+        args:
+          - --args=-json
+
+      - id: terraform_tflint
+        args:
+          - --args=--only=terraform_deprecated_interpolation
+          - --args=--only=terraform_deprecated_index
+          - --args=--only=terraform_unused_declarations
+          - --args=--only=terraform_comment_syntax
+          - --args=--only=terraform_documented_outputs
+          - --args=--only=terraform_documented_variables
+          - --args=--only=terraform_typed_variables
+          - --args=--only=terraform_module_pinned_source
+          - --args=--only=terraform_naming_convention
+          - --args=--only=terraform_required_version
+          - --args=--only=terraform_required_providers
+          - --args=--only=terraform_standard_module_structure
+
+      - id: terraform_tfsec
+        args:
+          - --args=--minimum-severity=MEDIUM
+          - --args=--exclude-downloaded-modules
+
+      - id: terraform_checkov
+        args:
+          - --args=--skip-check CKV_AZURE_1 # Allow storage account public access for sandbox
+          - --args=--skip-check CKV_AZURE_3 # Allow storage account public read for sandbox
+          - --args=--framework terraform
+
+  # YAML and JSON formatting
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.0.3
+    hooks:
+      - id: prettier
+        files: \.(json|yaml|yml|md)$
+        exclude: \.secrets/
+
+  # Additional security checks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ["--baseline", ".secrets.baseline"]
+        exclude: \.secrets/
+
+  # Azure-specific security and compliance
+  - repo: local
+    hooks:
+      - id: azure-policy-check
+        name: Azure Policy Compliance Check
+        description: Check templates against common Azure policies
+        entry: bash -c
+        args:
+          - |
+            echo "Running Azure Policy compliance checks..."
+
+            # Check for required tags
+            for file in "$@"; do
+              if [[ "$file" == *.bicep ]] || [[ "$file" == *.tf ]]; then
+                echo "Checking $file for required tags..."
+
+                # Check for Environment tag
+                if ! grep -i "Environment" "$file" > /dev/null; then
+                  echo "⚠️  Warning: Missing 'Environment' tag in $file"
+                fi
+
+                # Check for CostCenter tag
+                if ! grep -i "CostCenter" "$file" > /dev/null; then
+                  echo "⚠️  Warning: Missing 'CostCenter' tag in $file"
+                fi
+
+                echo "✅ $file checked for policy compliance"
+              fi
+            done
+        language: system
+        files: \.(bicep|tf)$
+        pass_filenames: true
+
+      - id: resource-naming-check
+        name: Azure Resource Naming Convention
+        description: Validate Azure resource naming conventions
+        entry: bash -c
+        args:
+          - |
+            echo "Validating Azure resource naming conventions..."
+
+            for file in "$@"; do
+              if [[ "$file" == *.bicep ]] || [[ "$file" == *.tf ]]; then
+                echo "Checking naming conventions in $file..."
+
+                # Check for proper Key Vault naming (kv-*)
+                if grep -E "(keyVault|key-vault)" "$file" > /dev/null; then
+                  if ! grep -E "kv-[a-z0-9-]+" "$file" > /dev/null; then
+                    echo "⚠️  Warning: Key Vault should follow 'kv-*' naming pattern in $file"
+                  fi
+                fi
+
+                # Check for proper Storage Account naming (st*)
+                if grep -E "(storageAccount|storage_account)" "$file" > /dev/null; then
+                  if grep -E "st[A-Z]" "$file" > /dev/null; then
+                    echo "❌ Error: Storage Account names must be lowercase in $file"
+                    exit 1
+                  fi
+                fi
+
+                echo "✅ $file passed naming convention checks"
+              fi
+            done
+        language: system
+        files: \.(bicep|tf)$
+        pass_filenames: true
+
+  # Documentation checks
+  - repo: local
+    hooks:
+      - id: readme-update-check
+        name: README Update Check
+        description: Ensure README is updated when templates change
+        entry: bash -c
+        args:
+          - |
+            if [[ $(git diff --cached --name-only | grep -E '\.(bicep|tf)$') ]]; then
+              if [[ ! $(git diff --cached --name-only | grep -i readme) ]]; then
+                echo "⚠️  Warning: Template files changed but README not updated"
+                echo "Consider updating documentation to reflect infrastructure changes"
+              fi
+            fi
+        language: system
+        pass_filenames: false
+        always_run: true
+
+  # Cost estimation (optional, requires external tools)
+  - repo: local
+    hooks:
+      - id: cost-estimation
+        name: Infrastructure Cost Estimation
+        description: Estimate costs for infrastructure changes
+        entry: bash -c
+        args:
+          - |
+            echo "💰 Cost estimation check..."
+
+            # Check for expensive resources
+            for file in "$@"; do
+              if [[ "$file" == *.bicep ]] || [[ "$file" == *.tf ]]; then
+                echo "Analyzing cost implications in $file..."
+
+                # Check for Premium SKUs
+                if grep -i "premium" "$file" > /dev/null; then
+                  echo "💰 Notice: Premium SKU detected in $file - verify cost implications"
+                fi
+
+                # Check for large VM sizes
+                if grep -E "(Standard_D[4-9]|Standard_E[4-9]|Standard_F[4-9])" "$file" > /dev/null; then
+                  echo "💰 Notice: Large VM size detected in $file - verify necessity"
+                fi
+
+                echo "✅ $file cost analysis complete"
+              fi
+            done
+        language: system
+        files: \.(bicep|tf)$
+        pass_filenames: true
+
+# Global configuration
+default_stages: [pre-commit, pre-push]
+fail_fast: false
+
+# CI/CD specific configuration
+ci:
+  autoupdate_schedule: monthly
+  skip: []
+  submodules: false

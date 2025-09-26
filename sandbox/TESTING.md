@@ -13,12 +13,14 @@ This guide provides comprehensive testing instructions for validating the Azure 
 ## 🧪 Pre-Testing Checklist
 
 ### Prerequisites
+
 - [ ] Azure CLI installed and configured
 - [ ] Terraform installed (if testing Terraform deployment)
 - [ ] Azure subscription with Contributor permissions
 - [ ] No existing resources that might conflict
 
 ### Environment Setup
+
 ```bash
 # Set environment variables
 export AZURE_SUBSCRIPTION_ID="your-sandbox-subscription-id"
@@ -35,6 +37,7 @@ az account set --subscription $AZURE_SUBSCRIPTION_ID
 ### Test 1: Bicep Deployment (AVM Validation)
 
 #### Deploy Infrastructure
+
 ```bash
 # Navigate to sandbox directory
 cd sandbox
@@ -60,6 +63,7 @@ az deployment sub show \
 ```
 
 #### Validate Deployment
+
 ```bash
 # Check deployment status
 DEPLOYMENT_STATUS=$(az deployment sub show --name $DEPLOYMENT_NAME --query "properties.provisioningState" -o tsv)
@@ -77,6 +81,7 @@ fi
 ### Test 2: Terraform Deployment
 
 #### Deploy with Terraform
+
 ```bash
 # Initialize Terraform
 terraform init
@@ -99,6 +104,7 @@ terraform output -json > terraform-outputs.json
 ### Test 3: Key Vault Functionality
 
 #### Basic Key Vault Operations
+
 ```bash
 # Get Key Vault name from deployment
 KV_NAME=$(jq -r '.keyVaultName.value' deployment-outputs.json)
@@ -130,8 +136,9 @@ az role assignment list --assignee $CURRENT_USER --scope "/subscriptions/$AZURE_
 ### Test 4: Virtual Network Configuration
 
 #### Network Validation
+
 ```bash
-# Get VNet name from deployment  
+# Get VNet name from deployment
 VNET_NAME=$(jq -r '.virtualNetworkName.value' deployment-outputs.json)
 echo "Testing Virtual Network: $VNET_NAME"
 
@@ -155,7 +162,8 @@ fi
 
 ### Test 5: Monitoring and Logging
 
-#### Log Analytics Validation  
+#### Log Analytics Validation
+
 ```bash
 # Get Log Analytics workspace name
 LOG_WORKSPACE=$(jq -r '.logAnalyticsWorkspaceId.value' deployment-outputs.json | cut -d'/' -f9)
@@ -181,6 +189,7 @@ az monitor log-analytics query --workspace "/subscriptions/$AZURE_SUBSCRIPTION_I
 ### Test 6: Security Configuration Validation
 
 #### Network Security
+
 ```bash
 echo "🔐 Testing network security configuration..."
 
@@ -198,6 +207,7 @@ fi
 ```
 
 #### RBAC Testing
+
 ```bash
 echo "👤 Testing RBAC configuration..."
 
@@ -225,7 +235,7 @@ echo "🏷️ Testing resource tagging..."
 echo "Key Vault tags:"
 az keyvault show --name $KV_NAME --query "tags" -o json | jq .
 
-# Test 2: Check VNet tags  
+# Test 2: Check VNet tags
 echo "Virtual Network tags:"
 az network vnet show --resource-group $RESOURCE_GROUP_NAME --name $VNET_NAME --query "tags" -o json | jq .
 

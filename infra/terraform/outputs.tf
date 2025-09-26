@@ -28,7 +28,7 @@ output "subnet_ids" {
   value = var.virtual_network_enabled ? {
     key_vault         = azurerm_subnet.key_vault[0].id
     private_endpoints = azurerm_subnet.private_endpoints[0].id
-    workloads        = azurerm_subnet.workloads[0].id
+    workloads         = azurerm_subnet.workloads[0].id
   } : {}
 }
 
@@ -128,10 +128,10 @@ output "deployment_summary" {
   value = {
     resource_group_name      = azurerm_resource_group.main.name
     virtual_network_enabled  = var.virtual_network_enabled
-    key_vault_enabled       = var.key_vault_enabled
+    key_vault_enabled        = var.key_vault_enabled
     private_endpoint_enabled = var.enable_private_endpoint
-    diagnostics_enabled     = var.enable_diagnostics
-    environment             = var.environment
-    location                = var.location
+    diagnostics_enabled      = var.enable_diagnostics
+    environment              = var.environment
+    location                 = var.location
   }
 }

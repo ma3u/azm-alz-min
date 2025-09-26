@@ -40,7 +40,7 @@ var zeroTrustPolicies = {
     policyDefinitionId: '/providers/Microsoft.Authorization/policyDefinitions/9297c21d-2ed6-4474-b48f-163f75654ce3'
     parameters: {}
   }
-  
+
   // Network Security (Basic)
   networkSecurityGroups: {
     displayName: 'Zero Trust - NSG Flow Logs'
@@ -48,7 +48,7 @@ var zeroTrustPolicies = {
     policyDefinitionId: '/providers/Microsoft.Authorization/policyDefinitions/c251913d-7d24-4958-af87-478ed3b9ba41'
     parameters: {}
   }
-  
+
   // Data Protection (Basic)
   storageAccountsHttps: {
     displayName: 'Zero Trust - Storage HTTPS Only'
@@ -56,7 +56,7 @@ var zeroTrustPolicies = {
     policyDefinitionId: '/providers/Microsoft.Authorization/policyDefinitions/404c3081-a854-4457-ae30-26a93ef643f9'
     parameters: {}
   }
-  
+
   sqlServerTlsVersion: {
     displayName: 'Zero Trust - SQL TLS 1.2'
     description: 'SQL servers should use minimum TLS version 1.2'
@@ -67,7 +67,7 @@ var zeroTrustPolicies = {
       }
     }
   }
-  
+
   // Device Trust (Basic)
   vmExtensionsApproved: {
     displayName: 'Zero Trust - Approved VM Extensions'
@@ -85,7 +85,7 @@ var zeroTrustPolicies = {
       }
     }
   }
-  
+
   // Application Security (Basic)
   keyVaultFirewall: {
     displayName: 'Zero Trust - Key Vault Firewall'
@@ -93,14 +93,14 @@ var zeroTrustPolicies = {
     policyDefinitionId: '/providers/Microsoft.Authorization/policyDefinitions/55615ac9-af46-4a59-874e-391cc3dfb490'
     parameters: {}
   }
-  
+
   appServiceHttps: {
     displayName: 'Zero Trust - App Service HTTPS Only'
     description: 'App Service should only be accessible over HTTPS'
     policyDefinitionId: '/providers/Microsoft.Authorization/policyDefinitions/a4af4a39-4135-47fb-b175-47fbdf85311d'
     parameters: {}
   }
-  
+
   // Visibility and Analytics (Basic)
   logAnalyticsDeployment: {
     displayName: 'Zero Trust - Log Analytics Required'
@@ -112,7 +112,7 @@ var zeroTrustPolicies = {
       }
     }
   }
-  
+
   activityLogRetention: {
     displayName: 'Zero Trust - Activity Log Retention'
     description: 'Activity logs should be retained for at least 90 days'

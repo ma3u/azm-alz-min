@@ -4,50 +4,51 @@
 variables:
   # Azure Configuration
   - name: azureServiceConnection
-    value: 'azure-service-connection-avm-alz-min'  # Name of your Azure service connection in Azure DevOps
-  
+    value: "azure-service-connection-avm-alz-min" # Name of your Azure service connection in Azure DevOps
+
   - name: azureSubscriptionId
-    value: 'YOUR_SUBSCRIPTION_ID'  # Replace with your actual Azure subscription ID
-  
+    value: "YOUR_SUBSCRIPTION_ID" # Replace with your actual Azure subscription ID
+
   - name: azureRegion
-    value: 'West Europe'  # Primary deployment region
-  
+    value: "West Europe" # Primary deployment region
+
   - name: resourceGroupPrefix
-    value: 'rg-avm-alz-min'  # Prefix for resource group names (will be suffixed with environment)
-  
+    value: "rg-avm-alz-min" # Prefix for resource group names (will be suffixed with environment)
+
   # Project Configuration
   - name: projectName
-    value: 'avm-alz-min'
-  
+    value: "avm-alz-min"
+
   - name: organizationName
-    value: 'matthiasbuchhorn'
-  
+    value: "matthiasbuchhorn"
+
   # Build Configuration
   - name: vmImageName
-    value: 'ubuntu-latest'
-  
+    value: "ubuntu-latest"
+
   # Security and Compliance
   - name: enableSecurityScan
     value: true
-  
+
   - name: enableWhatIf
     value: true
-  
+
   # Artifact Configuration
   - name: artifactRetentionDays
     value: 30
-  
+
   # Notification Settings
   - name: notificationEmail
-    value: 'matthias.buchhorn@example.com'  # Replace with your email
-  
+    value: "matthias.buchhorn@example.com" # Replace with your email
+
   # Feature Flags
   - name: enableManualApproval
-    value: true  # Set to false to auto-deploy to production
-  
+    value: true # Set to false to auto-deploy to production
+
   - name: enableParallelDeployment
-    value: false  # Set to true to deploy dev and prod in parallel
-  
+    value: false # Set to true to deploy dev and prod in parallel
+
+
   # Environment-specific overrides can be defined in individual stages
   # Example:
   # - group: 'azure-landingzone-dev'     # Variable group for dev environment

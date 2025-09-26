@@ -4,11 +4,11 @@ This guide explains how to synchronize your public GitHub repository (`ma3u/azm-
 
 ## 🔄 Sync Strategies Overview
 
-| Strategy | Use Case | Pros | Cons |
-|----------|----------|------|------|
-| **GitHub as Source** | Open source project with private CI/CD | Public visibility, GitHub features | Complex sync setup |
-| **Azure DevOps Mirror** | Private development with public showcase | Full Azure integration | Manual sync required |
-| **Dual Repository** | Separate public/private concerns | Clean separation | Potential drift |
+| Strategy                | Use Case                                 | Pros                               | Cons                 |
+| ----------------------- | ---------------------------------------- | ---------------------------------- | -------------------- |
+| **GitHub as Source**    | Open source project with private CI/CD   | Public visibility, GitHub features | Complex sync setup   |
+| **Azure DevOps Mirror** | Private development with public showcase | Full Azure integration             | Manual sync required |
+| **Dual Repository**     | Separate public/private concerns         | Clean separation                   | Potential drift      |
 
 ## 📋 Prerequisites
 
@@ -25,9 +25,11 @@ This method uses GitHub as the source of truth while running Azure DevOps pipeli
 ### Step 1: Connect GitHub Repository to Azure DevOps
 
 1. **Navigate to Azure DevOps Project**:
+
    - Go to [Azure DevOps](https://dev.azure.com/matthiasbuchhorn/avm-alz-min)
 
 2. **Create GitHub Service Connection**:
+
    ```yaml
    Service Connection Name: github-connection-azm-alz-min
    Connection Type: GitHub
@@ -36,6 +38,7 @@ This method uses GitHub as the source of truth while running Azure DevOps pipeli
    ```
 
 3. **Configure Pipeline to Use GitHub**:
+
    ```yaml
    # In azure-pipelines.yml
    resources:
@@ -45,7 +48,7 @@ This method uses GitHub as the source of truth while running Azure DevOps pipeli
          endpoint: github-connection-azm-alz-min
          name: ma3u/azm-alz-min
          ref: refs/heads/main
-   
+
    trigger:
      branches:
        include:
@@ -56,6 +59,7 @@ This method uses GitHub as the source of truth while running Azure DevOps pipeli
 ### Step 2: Configure Branch Policies
 
 1. **GitHub Branch Protection**:
+
    - Go to repository **Settings** → **Branches**
    - Protect `main` branch:
      ```yaml
@@ -67,6 +71,7 @@ This method uses GitHub as the source of truth while running Azure DevOps pipeli
      ```
 
 2. **Azure DevOps Pipeline Trigger**:
+
    ```yaml
    # Pipeline triggers on GitHub events
    trigger:
@@ -79,7 +84,7 @@ This method uses GitHub as the source of truth while running Azure DevOps pipeli
        include:
          - infra/*
          - pipelines/*
-   
+
    pr:
      branches:
        include:
@@ -104,15 +109,17 @@ gh api repos/ma3u/azm-alz-min/branches/main/protection \
 ### Step 1: Create Azure DevOps Repository
 
 1. **Create Private Repository**:
+
    - Go to **Repos** in Azure DevOps
    - Create new repository: `avm-alz-min-private`
 
 2. **Clone Both Repositories**:
+
    ```bash
    # Clone GitHub repo
    git clone https://github.com/ma3u/azm-alz-min.git
    cd azm-alz-min
-   
+
    # Add Azure DevOps remote
    git remote add azuredevops https://matthiasbuchhorn@dev.azure.com/matthiasbuchhorn/avm-alz-min/_git/avm-alz-min-private
    ```
@@ -123,7 +130,7 @@ Create a sync pipeline that runs on GitHub changes:
 
 ```yaml
 # pipelines/sync-pipeline.yml
-name: 'Sync-$(Date:yyyyMMdd)-$(Rev:r)'
+name: "Sync-$(Date:yyyyMMdd)-$(Rev:r)"
 
 trigger:
   branches:
@@ -131,35 +138,35 @@ trigger:
       - main
 
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: "ubuntu-latest"
 
 variables:
   - name: githubRepo
-    value: 'https://github.com/ma3u/azm-alz-min.git'
+    value: "https://github.com/ma3u/azm-alz-min.git"
   - name: azureDevOpsRepo
-    value: 'https://matthiasbuchhorn@dev.azure.com/matthiasbuchhorn/avm-alz-min/_git/avm-alz-min-private'
+    value: "https://matthiasbuchhorn@dev.azure.com/matthiasbuchhorn/avm-alz-min/_git/avm-alz-min-private"
 
 steps:
   - checkout: self
     persistCredentials: true
-    
+
   - task: Bash@3
-    displayName: 'Sync to Azure DevOps'
+    displayName: "Sync to Azure DevOps"
     inputs:
-      targetType: 'inline'
+      targetType: "inline"
       script: |
         # Configure git
         git config --global user.email "pipeline@azuredevops.com"
         git config --global user.name "Azure DevOps Pipeline"
-        
+
         # Add Azure DevOps remote if it doesn't exist
         if ! git remote get-url azuredevops; then
           git remote add azuredevops $(azureDevOpsRepo)
         fi
-        
+
         # Push to Azure DevOps
         git push azuredevops HEAD:main --force
-        
+
         echo "Sync completed successfully"
 ```
 
@@ -198,29 +205,29 @@ name: Sync to Azure DevOps
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   workflow_dispatch:
 
 jobs:
   sync:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout GitHub repository
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Configure Git
         run: |
           git config --global user.email "action@github.com"
           git config --global user.name "GitHub Action"
-      
+
       - name: Add Azure DevOps remote
         run: |
           git remote add azuredevops https://${{ secrets.AZUREDEVOPS_USERNAME }}:${{ secrets.AZUREDEVOPS_PAT }}@dev.azure.com/matthiasbuchhorn/avm-alz-min/_git/avm-alz-min-private
-      
+
       - name: Push to Azure DevOps
         run: |
           git push azuredevops main --force
@@ -251,7 +258,7 @@ trigger:
       - pipelines/*
 
 schedules:
-  - cron: "0 2 * * *"  # Daily at 2 AM
+  - cron: "0 2 * * *" # Daily at 2 AM
     displayName: Daily sync check
     branches:
       include:
@@ -263,10 +270,11 @@ schedules:
 ### GitHub Repository (Public)
 
 1. **Sensitive Information**:
+
    ```yaml
    # Never commit these to public repo:
    - Azure subscription IDs
-   - Service principal credentials  
+   - Service principal credentials
    - Environment-specific secrets
    - Internal URLs or endpoints
    ```
@@ -287,21 +295,22 @@ schedules:
 ### Azure DevOps Repository (Private)
 
 1. **Environment-Specific Configurations**:
+
    ```yaml
    # pipelines/variables/production.yml
    variables:
      - name: azureSubscriptionId
-       value: 'real-subscription-id'
+       value: "real-subscription-id"
      - name: resourceGroupPrefix
-       value: 'rg-prod-avm-alz'
+       value: "rg-prod-avm-alz"
    ```
 
 2. **Secret Management**:
    ```yaml
    # Use Azure DevOps variable groups
    variables:
-     - group: 'azure-landingzone-secrets'
-     - group: 'azure-landingzone-prod'
+     - group: "azure-landingzone-secrets"
+     - group: "azure-landingzone-prod"
    ```
 
 ## 📊 Monitoring and Maintenance
@@ -309,6 +318,7 @@ schedules:
 ### Sync Health Monitoring
 
 1. **GitHub Action Monitoring**:
+
    ```yaml
    # Add notification step
    - name: Notify on failure
@@ -325,18 +335,19 @@ schedules:
    ```
 
 2. **Azure DevOps Pipeline Status**:
+
    ```yaml
    # Add monitoring task
    - task: AzureCLI@2
-     displayName: 'Check Sync Status'
+     displayName: "Check Sync Status"
      inputs:
-       scriptType: 'bash'
-       scriptLocation: 'inlineScript'
+       scriptType: "bash"
+       scriptLocation: "inlineScript"
        inlineScript: |
          # Compare commit hashes
          GITHUB_COMMIT=$(curl -s https://api.github.com/repos/ma3u/azm-alz-min/commits/main | jq -r '.sha')
          AZDO_COMMIT=$(git rev-parse HEAD)
-         
+
          if [ "$GITHUB_COMMIT" != "$AZDO_COMMIT" ]; then
            echo "##vso[task.logissue type=warning]Repositories are out of sync"
          fi
@@ -345,14 +356,15 @@ schedules:
 ### Regular Maintenance Tasks
 
 1. **Weekly Repository Comparison**:
+
    ```bash
    #!/bin/bash
    # weekly-sync-check.sh
-   
+
    # Compare repository states
    git fetch origin
    git fetch azuredevops
-   
+
    if [ "$(git rev-parse origin/main)" != "$(git rev-parse azuredevops/main)" ]; then
      echo "Repositories are out of sync!"
      # Send notification or create issue
@@ -363,9 +375,9 @@ schedules:
    ```yaml
    # Automated branch cleanup
    - task: PowerShell@2
-     displayName: 'Clean up merged branches'
+     displayName: "Clean up merged branches"
      inputs:
-       targetType: 'inline'
+       targetType: "inline"
        script: |
          git branch --merged | ForEach-Object {
            if ($_ -notmatch "main|develop") {
@@ -377,6 +389,7 @@ schedules:
 ## 🎯 Best Practices
 
 ### Repository Management
+
 - ✅ Use semantic versioning for releases
 - ✅ Maintain clean commit history
 - ✅ Use conventional commit messages
@@ -384,6 +397,7 @@ schedules:
 - ✅ Monitor sync health
 
 ### Security
+
 - ✅ Never store secrets in public repository
 - ✅ Use different parameter files for environments
 - ✅ Implement proper access controls
@@ -391,6 +405,7 @@ schedules:
 - ✅ Use service accounts for automation
 
 ### Documentation
+
 - ✅ Document sync procedures
 - ✅ Maintain architecture diagrams
 - ✅ Keep README files updated
@@ -402,15 +417,17 @@ schedules:
 ### Common Sync Issues
 
 1. **Authentication Failures**:
+
    ```bash
    # Test GitHub access
    curl -H "Authorization: token $GITHUB_TOKEN" https://api.github.com/user
-   
+
    # Test Azure DevOps access
    curl -u "username:$AZDO_PAT" https://dev.azure.com/matthiasbuchhorn/_apis/projects
    ```
 
 2. **Merge Conflicts**:
+
    ```bash
    # Resolve conflicts during sync
    git fetch azuredevops
@@ -439,7 +456,7 @@ environments:
     github_branch: develop
     azdo_repo: avm-alz-min-dev
   prod:
-    github_branch: main  
+    github_branch: main
     azdo_repo: avm-alz-min-prod
 ```
 

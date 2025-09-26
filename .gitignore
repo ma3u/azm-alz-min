@@ -72,4 +72,32 @@ coverage/
 
 # Build artifacts
 dist/
-build/
+build/.secrets/
+
+# SECURITY: Secrets and credentials (CRITICAL)
+.secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets.json
+*secret*
+*credential*
+*password*
+# Exception: Allow detect-secrets baseline (contains no actual secrets)
+!.secrets.baseline
+.azure-credentials
+service-principal.json
+
+# Azure specific secrets
+*.publishsettings
+*.azureauth
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+authorized_keys

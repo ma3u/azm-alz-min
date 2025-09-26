@@ -4,49 +4,49 @@
 parameters:
   - name: azureServiceConnection
     type: string
-    displayName: 'Azure Service Connection'
-  
+    displayName: "Azure Service Connection"
+
   - name: subscriptionId
     type: string
-    displayName: 'Azure Subscription ID'
-  
+    displayName: "Azure Subscription ID"
+
   - name: resourceGroupName
     type: string
-    displayName: 'Resource Group Name'
-  
+    displayName: "Resource Group Name"
+
   - name: location
     type: string
-    displayName: 'Azure Region'
-    default: 'West Europe'
-  
+    displayName: "Azure Region"
+    default: "West Europe"
+
   - name: environmentName
     type: string
-    displayName: 'Environment Name (dev/prod)'
+    displayName: "Environment Name (dev/prod)"
     values:
       - dev
       - prod
-  
+
   - name: artifactName
     type: string
-    displayName: 'Build Artifact Name'
-    default: 'bicep-templates'
+    displayName: "Build Artifact Name"
+    default: "bicep-templates"
 
 steps:
   # Download build artifacts
   - task: DownloadBuildArtifacts@1
-    displayName: 'Download Build Artifacts'
+    displayName: "Download Build Artifacts"
     inputs:
-      buildType: 'current'
-      artifactName: '${{ parameters.artifactName }}'
-      downloadPath: '$(System.ArtifactsDirectory)'
+      buildType: "current"
+      artifactName: "${{ parameters.artifactName }}"
+      downloadPath: "$(System.ArtifactsDirectory)"
 
   # Display environment information
   - task: AzureCLI@2
-    displayName: 'Display Deployment Information'
+    displayName: "Display Deployment Information"
     inputs:
-      azureSubscription: '${{ parameters.azureServiceConnection }}'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
+      azureSubscription: "${{ parameters.azureServiceConnection }}"
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
       inlineScript: |
         echo "=== Deployment Information ==="
         echo "Environment: ${{ parameters.environmentName }}"
@@ -59,11 +59,11 @@ steps:
 
   # Ensure resource group exists
   - task: AzureCLI@2
-    displayName: 'Ensure Resource Group Exists'
+    displayName: "Ensure Resource Group Exists"
     inputs:
-      azureSubscription: '${{ parameters.azureServiceConnection }}'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
+      azureSubscription: "${{ parameters.azureServiceConnection }}"
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
       inlineScript: |
         echo "Checking if resource group '${{ parameters.resourceGroupName }}' exists..."
         if ! az group show --name "${{ parameters.resourceGroupName }}" --subscription "${{ parameters.subscriptionId }}" >/dev/null 2>&1; then
@@ -84,15 +84,15 @@ steps:
 
   # Run What-If analysis
   - task: AzureCLI@2
-    displayName: 'Run What-If Analysis'
+    displayName: "Run What-If Analysis"
     inputs:
-      azureSubscription: '${{ parameters.azureServiceConnection }}'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
+      azureSubscription: "${{ parameters.azureServiceConnection }}"
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
       inlineScript: |
         echo "Running What-If analysis..."
         cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"
-        
+
         # Create environment-specific parameters
         cat > temp-parameters.json << EOF
         {
@@ -105,7 +105,7 @@ steps:
           }
         }
         EOF
-        
+
         # Run what-if
         az deployment group what-if \
           --resource-group "${{ parameters.resourceGroupName }}" \
@@ -116,15 +116,15 @@ steps:
 
   # Deploy Bicep template
   - task: AzureCLI@2
-    displayName: 'Deploy Bicep Template'
+    displayName: "Deploy Bicep Template"
     inputs:
-      azureSubscription: '${{ parameters.azureServiceConnection }}'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
+      azureSubscription: "${{ parameters.azureServiceConnection }}"
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
       inlineScript: |
         echo "Starting deployment..."
         cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"
-        
+
         # Create environment-specific parameters
         cat > temp-parameters.json << EOF
         {
@@ -137,11 +137,11 @@ steps:
           }
         }
         EOF
-        
+
         # Deploy template
         DEPLOYMENT_NAME="deployment-$(Build.BuildId)-${{ parameters.environmentName }}"
         echo "Deployment name: $DEPLOYMENT_NAME"
-        
+
         az deployment group create \
           --resource-group "${{ parameters.resourceGroupName }}" \
           --template-file "infra/main.bicep" \
@@ -149,61 +149,61 @@ steps:
           --subscription "${{ parameters.subscriptionId }}" \
           --name "$DEPLOYMENT_NAME" \
           --verbose
-        
+
         echo "Deployment completed successfully!"
 
   # Post-deployment validation
   - task: AzureCLI@2
-    displayName: 'Post-Deployment Validation'
+    displayName: "Post-Deployment Validation"
     inputs:
-      azureSubscription: '${{ parameters.azureServiceConnection }}'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
+      azureSubscription: "${{ parameters.azureServiceConnection }}"
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
       inlineScript: |
         echo "=== Post-Deployment Validation ==="
-        
+
         # Get deployment details
         DEPLOYMENT_NAME="deployment-$(Build.BuildId)-${{ parameters.environmentName }}"
         echo "Checking deployment: $DEPLOYMENT_NAME"
-        
+
         DEPLOYMENT_STATUS=$(az deployment group show \
           --resource-group "${{ parameters.resourceGroupName }}" \
           --name "$DEPLOYMENT_NAME" \
           --query "properties.provisioningState" \
           --output tsv)
-        
+
         echo "Deployment Status: $DEPLOYMENT_STATUS"
-        
+
         if [ "$DEPLOYMENT_STATUS" = "Succeeded" ]; then
           echo "✅ Deployment successful!"
-          
+
           # Get Key Vault name from deployment outputs
           KV_NAME=$(az deployment group show \
             --resource-group "${{ parameters.resourceGroupName }}" \
             --name "$DEPLOYMENT_NAME" \
             --query "properties.outputs.keyVaultName.value" \
             --output tsv)
-          
+
           echo "Key Vault Name: $KV_NAME"
-          
+
           # Validate Key Vault accessibility
           if az keyvault show --name "$KV_NAME" --resource-group "${{ parameters.resourceGroupName }}" >/dev/null 2>&1; then
             echo "✅ Key Vault is accessible"
-            
+
             # Get Key Vault properties
             KV_URI=$(az keyvault show \
               --name "$KV_NAME" \
               --resource-group "${{ parameters.resourceGroupName }}" \
               --query "properties.vaultUri" \
               --output tsv)
-            
+
             echo "Key Vault URI: $KV_URI"
             echo "✅ Validation completed successfully!"
-            
+
             # Set pipeline variables for downstream tasks
             echo "##vso[task.setvariable variable=keyVaultName;isOutput=true]$KV_NAME"
             echo "##vso[task.setvariable variable=keyVaultUri;isOutput=true]$KV_URI"
-            
+
           else
             echo "❌ Key Vault validation failed"
             exit 1
@@ -215,11 +215,11 @@ steps:
 
   # Clean up temporary files
   - task: AzureCLI@2
-    displayName: 'Clean Up'
+    displayName: "Clean Up"
     inputs:
-      azureSubscription: '${{ parameters.azureServiceConnection }}'
-      scriptType: 'bash'
-      scriptLocation: 'inlineScript'
+      azureSubscription: "${{ parameters.azureServiceConnection }}"
+      scriptType: "bash"
+      scriptLocation: "inlineScript"
       inlineScript: |
         echo "Cleaning up temporary files..."
         cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"

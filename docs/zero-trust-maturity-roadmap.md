@@ -7,35 +7,42 @@ This document outlines the progression from Level 1 (Basic) to Level 3 (Advanced
 ### What We've Implemented
 
 #### ✅ Identity Verification (Basic)
+
 - Multi-factor authentication for administrative accounts
 - Basic Azure AD integration
 - RBAC for Key Vault access
 
 #### ✅ Device Trust (Basic)
+
 - Approved VM extensions only
 - Basic device compliance
 
 #### ✅ Network Security (Basic)
+
 - Network Security Group flow logs
 - Service endpoints for Key Vault
 - Basic firewall rules
 
 #### ✅ Data Protection (Basic)
+
 - HTTPS-only for storage accounts and web services
 - TLS 1.2 minimum for SQL servers
 - Basic encryption at rest
 
 #### ✅ Application Security (Basic)
+
 - Key Vault firewall enabled
 - App Service HTTPS enforcement
 - Basic security headers
 
 #### ✅ Visibility and Analytics (Basic)
+
 - Activity log retention (90 days)
 - Basic diagnostic settings
 - Log Analytics integration
 
 ### Security Posture
+
 - **Maturity Level**: Basic
 - **Policy Mode**: Audit (non-blocking)
 - **Coverage**: Foundational security controls
@@ -46,9 +53,11 @@ This document outlines the progression from Level 1 (Basic) to Level 3 (Advanced
 ## 🚀 Level 2 - Advanced (6-12 months)
 
 ### Roadmap Objectives
+
 Enhance security controls while maintaining operational efficiency through intelligent automation and conditional access.
 
 #### 🔐 Enhanced Identity Verification
+
 - **Conditional Access Policies**
   ```json
   {
@@ -64,6 +73,7 @@ Enhance security controls while maintaining operational efficiency through intel
   }
   ```
 - **Privileged Identity Management (PIM)**
+
   - Just-in-time access for administrative roles
   - Time-bound elevation with approval workflows
   - Activity monitoring and alerting
@@ -74,7 +84,9 @@ Enhance security controls while maintaining operational efficiency through intel
   - User behavior analytics
 
 #### 🖥️ Advanced Device Trust
+
 - **Intune Device Management**
+
   - Device compliance policies
   - App protection policies
   - Conditional access based on device health
@@ -85,7 +97,9 @@ Enhance security controls while maintaining operational efficiency through intel
   - Hardware security module integration
 
 #### 🌐 Network Microsegmentation
+
 - **Private Endpoints Everywhere**
+
   - All PaaS services behind private endpoints
   - Hub-spoke network architecture
   - Network security groups with application-specific rules
@@ -96,7 +110,9 @@ Enhance security controls while maintaining operational efficiency through intel
   - URL filtering and web categories
 
 #### 📊 Advanced Data Classification
+
 - **Microsoft Purview**
+
   - Automatic data discovery and classification
   - Data loss prevention policies
   - Information protection labels
@@ -107,7 +123,9 @@ Enhance security controls while maintaining operational efficiency through intel
   - Advanced threat protection
 
 #### 🛡️ Application Security Hardening
+
 - **Azure Application Gateway**
+
   - Web Application Firewall (WAF)
   - SSL/TLS termination
   - Path-based routing with security headers
@@ -118,7 +136,9 @@ Enhance security controls while maintaining operational efficiency through intel
   - IP whitelisting
 
 #### 📈 Enhanced Monitoring
+
 - **Azure Sentinel SIEM**
+
   - Advanced threat detection
   - Automated incident response
   - Threat hunting capabilities
@@ -130,16 +150,17 @@ Enhance security controls while maintaining operational efficiency through intel
 
 ### Implementation Timeline (Level 2)
 
-| Month | Focus Area | Key Deliverables |
-|-------|------------|------------------|
-| 1-2   | Identity   | Deploy Conditional Access, Enable PIM |
+| Month | Focus Area | Key Deliverables                                   |
+| ----- | ---------- | -------------------------------------------------- |
+| 1-2   | Identity   | Deploy Conditional Access, Enable PIM              |
 | 3-4   | Network    | Implement private endpoints, Deploy Azure Firewall |
-| 5-6   | Data       | Deploy Purview, Implement advanced encryption |
-| 7-8   | Apps       | Deploy WAF, Implement API security |
-| 9-10  | Monitoring | Deploy Sentinel, Configure advanced alerting |
-| 11-12 | Validation | Security assessment, Policy refinement |
+| 5-6   | Data       | Deploy Purview, Implement advanced encryption      |
+| 7-8   | Apps       | Deploy WAF, Implement API security                 |
+| 9-10  | Monitoring | Deploy Sentinel, Configure advanced alerting       |
+| 11-12 | Validation | Security assessment, Policy refinement             |
 
 ### Success Metrics (Level 2)
+
 - 95% of admin access through PIM
 - 100% PaaS services with private endpoints
 - Zero trust network score > 70%
@@ -151,10 +172,13 @@ Enhance security controls while maintaining operational efficiency through intel
 ## 🏆 Level 3 - Optimal (12-24 months)
 
 ### Advanced Zero Trust Architecture
+
 Implement AI-driven security, automated threat response, and comprehensive zero-trust networking.
 
 #### 🧠 AI-Powered Security
+
 - **Microsoft Defender for Cloud**
+
   - Cloud security posture management (CSPM)
   - Cloud workload protection platform (CWPP)
   - Regulatory compliance dashboard
@@ -172,7 +196,9 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
   ```
 
 #### 🔒 Zero Trust Network Architecture (ZTNA)
+
 - **Software-Defined Perimeter**
+
   - Application-specific network access
   - Dynamic trust evaluation
   - Continuous authentication
@@ -183,7 +209,9 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
   - East-west traffic inspection
 
 #### 🛡️ Advanced Threat Protection
+
 - **Extended Detection and Response (XDR)**
+
   - Cross-platform threat correlation
   - Automated investigation
   - Threat intelligence integration
@@ -194,7 +222,9 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
   - DNS over HTTPS enforcement
 
 #### 📋 Compliance Automation
+
 - **Policy as Code (PaC)**
+
   ```bicep
   // Example: Automated compliance enforcement
   resource compliancePolicy 'Microsoft.Authorization/policyAssignments@2022-06-01' = {
@@ -213,7 +243,9 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
   - Regulatory reporting automation
 
 #### 🔄 Adaptive Access Controls
+
 - **Context-Aware Security**
+
   - Location-based access controls
   - Time-based access restrictions
   - Behavioral analytics
@@ -225,14 +257,15 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
 
 ### Implementation Timeline (Level 3)
 
-| Quarter | Focus Area | Key Deliverables |
-|---------|------------|------------------|
+| Quarter | Focus Area  | Key Deliverables                              |
+| ------- | ----------- | --------------------------------------------- |
 | Q1      | AI Security | Deploy Defender for Cloud, Automated response |
-| Q2      | ZTNA        | Implement software-defined perimeter |
-| Q3      | XDR         | Deploy cross-platform threat detection |
-| Q4      | Compliance  | Automated compliance and reporting |
+| Q2      | ZTNA        | Implement software-defined perimeter          |
+| Q3      | XDR         | Deploy cross-platform threat detection        |
+| Q4      | Compliance  | Automated compliance and reporting            |
 
 ### Success Metrics (Level 3)
+
 - Zero trust network score > 90%
 - 99% automated threat response
 - Compliance score > 95% across all frameworks
@@ -244,17 +277,21 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
 ## 🔄 Migration Strategy
 
 ### Phase 1: Foundation (Current - Level 1)
+
 - ✅ Basic policies in audit mode
 - ✅ Foundational monitoring
 - ✅ Core identity controls
 
 ### Phase 2: Enhancement (Level 2)
+
 1. **Pilot Program** (Month 1-2)
+
    - Select 10% of users for advanced controls
    - Monitor impact and user experience
    - Refine policies based on feedback
 
 2. **Gradual Rollout** (Month 3-8)
+
    - Expand to 50% of users
    - Implement network controls
    - Deploy advanced monitoring
@@ -265,12 +302,15 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
    - Complete monitoring suite
 
 ### Phase 3: Optimization (Level 3)
+
 1. **AI Integration** (Month 13-16)
+
    - Deploy machine learning models
    - Implement automated responses
    - Fine-tune algorithms
 
 2. **Advanced Controls** (Month 17-20)
+
    - Full ZTNA implementation
    - Advanced threat protection
    - Comprehensive compliance automation
@@ -285,16 +325,19 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
 ## 📊 Business Value Progression
 
 ### Level 1 Benefits
+
 - 60% reduction in security incidents
 - Improved compliance posture
 - Foundation for advanced security
 
 ### Level 2 Benefits
+
 - 80% reduction in successful attacks
 - 50% reduction in incident response time
 - Enhanced user productivity through intelligent access
 
 ### Level 3 Benefits
+
 - 95% threat prevention rate
 - 90% reduction in manual security tasks
 - Comprehensive regulatory compliance
@@ -305,18 +348,21 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
 ## 🛠️ Implementation Prerequisites
 
 ### Technical Requirements
+
 - Azure AD Premium P2 licenses
 - Microsoft 365 E5 or equivalent security licensing
 - Network infrastructure supporting microsegmentation
 - Sufficient logging and monitoring capacity
 
 ### Organizational Readiness
+
 - Executive sponsorship and budget approval
 - Dedicated security team or partnership
 - Change management process
 - User training and communication plan
 
 ### Skills and Training
+
 - Zero Trust architecture understanding
 - Azure security services expertise
 - Policy as code development
@@ -328,16 +374,17 @@ Implement AI-driven security, automated threat response, and comprehensive zero-
 
 ### Key Performance Indicators (KPIs)
 
-| Metric | Level 1 Target | Level 2 Target | Level 3 Target |
-|--------|----------------|----------------|----------------|
-| Zero Trust Score | 40% | 70% | 90% |
-| Policy Compliance | 80% | 95% | 99% |
-| MTTD | 2 hours | 15 minutes | 5 minutes |
-| MTTR | 8 hours | 4 hours | 1 hour |
-| False Positives | <20% | <10% | <5% |
-| User Satisfaction | 3.5/5 | 4.0/5 | 4.5/5 |
+| Metric            | Level 1 Target | Level 2 Target | Level 3 Target |
+| ----------------- | -------------- | -------------- | -------------- |
+| Zero Trust Score  | 40%            | 70%            | 90%            |
+| Policy Compliance | 80%            | 95%            | 99%            |
+| MTTD              | 2 hours        | 15 minutes     | 5 minutes      |
+| MTTR              | 8 hours        | 4 hours        | 1 hour         |
+| False Positives   | <20%           | <10%           | <5%            |
+| User Satisfaction | 3.5/5          | 4.0/5          | 4.5/5          |
 
 ### Regular Reviews
+
 - **Monthly**: Operational metrics review
 - **Quarterly**: Security posture assessment
 - **Semi-annually**: Architecture review and planning

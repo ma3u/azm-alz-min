@@ -38,7 +38,7 @@ var cafPolicies = {
       }
     }
   }
-  
+
   requiredTags: {
     displayName: 'CAF - Required Tags'
     description: 'Require specific tags on resources for governance'
@@ -49,7 +49,7 @@ var cafPolicies = {
       }
     }
   }
-  
+
   // Cost Management
   budgetAlert: {
     displayName: 'CAF - Budget Alerts'
@@ -57,7 +57,7 @@ var cafPolicies = {
     policyDefinitionId: '/providers/Microsoft.Authorization/policyDefinitions/5b9159ae-1701-4a6f-9a7a-aa9c8ddd0580'
     parameters: {}
   }
-  
+
   // Resource Management
   allowedLocations: {
     displayName: 'CAF - Allowed Locations'
@@ -74,7 +74,7 @@ var cafPolicies = {
       }
     }
   }
-  
+
   allowedResourceTypes: {
     displayName: 'CAF - Allowed Resource Types'
     description: 'Restrict deployment to approved resource types'
@@ -97,7 +97,7 @@ var cafPolicies = {
       }
     }
   }
-  
+
   // Security and Compliance
   storageAccountEncryption: {
     displayName: 'CAF - Storage Encryption'
@@ -105,14 +105,14 @@ var cafPolicies = {
     policyDefinitionId: '/providers/Microsoft.Authorization/policyDefinitions/6fac406b-40ca-413b-bf8e-0bf964659c25'
     parameters: {}
   }
-  
+
   sqlAuditing: {
     displayName: 'CAF - SQL Server Auditing'
     description: 'SQL Server auditing should be enabled'
     policyDefinitionId: '/providers/Microsoft.Authorization/policyDefinitions/a6fb4358-5bf4-4ad7-ba82-2cd2f41ce5e9'
     parameters: {}
   }
-  
+
   // Monitoring and Logging
   diagnosticSettings: {
     displayName: 'CAF - Diagnostic Settings'
@@ -326,7 +326,7 @@ output cafCompliance object = {
   version: '1.0.0'
   pillars: [
     'Strategy'
-    'Plan' 
+    'Plan'
     'Ready'
     'Adopt'
     'Govern'

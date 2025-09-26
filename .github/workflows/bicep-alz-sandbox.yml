@@ -1,0 +1,504 @@
+name: Bicep ALZ Sandbox Deployment
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "infra/bicep/sandbox/**/*.bicep"
+      - "infra/bicep/sandbox/**/*.bicepparam"
+      - "infra/bicep/sandbox/**/*.json"
+      - ".github/workflows/bicep-alz-sandbox.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "infra/bicep/sandbox/**/*.bicep"
+      - "infra/bicep/sandbox/**/*.bicepparam"
+      - "infra/bicep/sandbox/**/*.json"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target Environment"
+        required: true
+        default: "sandbox"
+        type: choice
+        options:
+          - sandbox
+          - dev
+          - test
+      destroy:
+        description: "Destroy resources after deployment (for testing)"
+        required: false
+        default: false
+        type: boolean
+      skip_validation:
+        description: "Skip What-If validation (deploy directly)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+jobs:
+  bicep-validation:
+    name: 🔧 Bicep Build & Validation
+    runs-on: ubuntu-latest
+    outputs:
+      templates_found: ${{ steps.discover-bicep.outputs.templates_found }}
+      main_template: ${{ steps.discover-bicep.outputs.main_template }}
+      parameters_file: ${{ steps.discover-bicep.outputs.parameters_file }}
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 📦 Install and Verify Bicep CLI
+        run: |
+          echo "📦 Installing Bicep CLI..."
+          az bicep install
+          az bicep upgrade
+          echo "📋 Bicep CLI version:"
+          az bicep version
+
+      - name: 🔍 Discover Bicep Templates
+        id: discover-bicep
+        run: |
+          echo "🔍 Discovering Bicep sandbox templates..."
+
+          # Find main template
+          MAIN_TEMPLATE=""
+          PARAMETERS_FILE=""
+
+          if [[ -f "infra/bicep/sandbox/main.bicep" ]]; then
+            MAIN_TEMPLATE="infra/bicep/sandbox/main.bicep"
+            echo "✅ Found main template: $MAIN_TEMPLATE"
+          elif [[ -f "infra/bicep/sandbox/simple-sandbox.bicep" ]]; then
+            MAIN_TEMPLATE="infra/bicep/sandbox/simple-sandbox.bicep"
+            echo "✅ Found simple sandbox template: $MAIN_TEMPLATE"
+          else
+            echo "🔍 Searching for any .bicep files in sandbox..."
+            MAIN_TEMPLATE=$(find infra/bicep/sandbox -name "*.bicep" -type f | head -1)
+          fi
+
+          if [[ -z "$MAIN_TEMPLATE" ]]; then
+            echo "❌ No Bicep templates found in infra/bicep/sandbox/"
+            echo "templates_found=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Find corresponding parameters file
+          TEMPLATE_NAME=$(basename "$MAIN_TEMPLATE" .bicep)
+          if [[ -f "infra/bicep/sandbox/${TEMPLATE_NAME}.parameters.json" ]]; then
+            PARAMETERS_FILE="infra/bicep/sandbox/${TEMPLATE_NAME}.parameters.json"
+            echo "✅ Found parameters file: $PARAMETERS_FILE"
+          elif [[ -f "infra/bicep/sandbox/parameters.json" ]]; then
+            PARAMETERS_FILE="infra/bicep/sandbox/parameters.json"
+            echo "✅ Found generic parameters file: $PARAMETERS_FILE"
+          else
+            echo "⚠️ No parameters file found, will deploy with parameter prompts"
+          fi
+
+          echo "templates_found=true" >> $GITHUB_OUTPUT
+          echo "main_template=$MAIN_TEMPLATE" >> $GITHUB_OUTPUT
+          echo "parameters_file=$PARAMETERS_FILE" >> $GITHUB_OUTPUT
+
+          echo "📋 Template Discovery Summary:"
+          echo "  Main Template: $MAIN_TEMPLATE"
+          echo "  Parameters File: $PARAMETERS_FILE"
+
+      - name: 🔨 Bicep Build & Lint
+        if: steps.discover-bicep.outputs.templates_found == 'true'
+        run: |
+          echo "🔨 Building and linting Bicep templates..."
+          MAIN_TEMPLATE="${{ steps.discover-bicep.outputs.main_template }}"
+
+          echo "🔧 Building: $MAIN_TEMPLATE"
+          az bicep build --file "$MAIN_TEMPLATE" --outfile "/tmp/$(basename $MAIN_TEMPLATE .bicep).json"
+
+          echo "🧹 Linting: $MAIN_TEMPLATE"
+          az bicep build --file "$MAIN_TEMPLATE" 2>&1 | tee /tmp/bicep-lint.log
+
+          # Check for errors (non-blocking for warnings)
+          if grep -i "error" /tmp/bicep-lint.log; then
+            echo "❌ Build errors found in $MAIN_TEMPLATE"
+            exit 1
+          fi
+
+          # Report warnings
+          if grep -i "warning" /tmp/bicep-lint.log; then
+            echo "⚠️ Warnings found in $MAIN_TEMPLATE (non-blocking)"
+          fi
+
+          echo "✅ $MAIN_TEMPLATE validation complete"
+
+      - name: 🔍 AVM Module Version Check
+        if: steps.discover-bicep.outputs.templates_found == 'true'
+        run: |
+          echo "🔍 Checking AVM module versions in sandbox templates..."
+          MAIN_TEMPLATE="${{ steps.discover-bicep.outputs.main_template }}"
+
+          # Extract AVM modules
+          avm_modules=$(grep -oE "br/public:avm/[^'\"]*" "$MAIN_TEMPLATE" || true)
+
+          if [[ -n "$avm_modules" ]]; then
+            echo "📦 Found AVM modules in $MAIN_TEMPLATE:"
+            echo "$avm_modules"
+
+            while IFS= read -r module; do
+              if [[ -n "$module" ]]; then
+                service_resource=$(echo "$module" | sed 's|br/public:avm/res/||' | sed 's|:.*||')
+                version=$(echo "$module" | grep -oE ":[0-9]+\\.[0-9]+\\.[0-9]+" | sed 's/://')
+
+                if [[ -n "$version" && -n "$service_resource" ]]; then
+                  echo "🏷️ Module: $service_resource, Version: $version"
+                  echo "ℹ️ To check latest: az rest --method GET --url 'https://mcr.microsoft.com/v2/bicep/avm/res/$service_resource/tags/list'"
+                else
+                  echo "⚠️ Module version not properly specified: $module"
+                fi
+              fi
+            done <<< "$avm_modules"
+          else
+            echo "ℹ️ No AVM modules found in $MAIN_TEMPLATE"
+          fi
+
+      - name: 🛡️ Bicep Security Scan
+        if: steps.discover-bicep.outputs.templates_found == 'true'
+        run: |
+          echo "🛡️ Running security scans on Bicep sandbox templates..."
+          MAIN_TEMPLATE="${{ steps.discover-bicep.outputs.main_template }}"
+
+          echo "🔐 Security scanning: $MAIN_TEMPLATE"
+
+          # Check for hardcoded secrets
+          if grep -iE "(password|secret|key|token).*=.*['\"][^'\"]{8,}['\"]" "$MAIN_TEMPLATE"; then
+            echo "❌ Potential hardcoded secret found in $MAIN_TEMPLATE"
+            exit 1
+          fi
+
+          # Security configuration checks
+          security_issues=0
+
+          # Check for insecure configurations
+          if grep -i "publicNetworkAccess.*Enabled" "$MAIN_TEMPLATE"; then
+            echo "⚠️ Public network access enabled in $MAIN_TEMPLATE"
+            security_issues=$((security_issues + 1))
+          fi
+
+          if grep -i "adminUserEnabled.*true" "$MAIN_TEMPLATE"; then
+            echo "❌ Admin user enabled in $MAIN_TEMPLATE"
+            exit 1
+          fi
+
+          if grep -i "httpsOnly.*false" "$MAIN_TEMPLATE"; then
+            echo "❌ HTTPS enforcement disabled in $MAIN_TEMPLATE"
+            exit 1
+          fi
+
+          if grep -i "defaultAction.*Allow" "$MAIN_TEMPLATE"; then
+            echo "⚠️ Default network action set to Allow in $MAIN_TEMPLATE"
+            security_issues=$((security_issues + 1))
+          fi
+
+          if [[ $security_issues -eq 0 ]]; then
+            echo "✅ $MAIN_TEMPLATE passed security scan"
+          else
+            echo "⚠️ $MAIN_TEMPLATE has $security_issues security warnings"
+          fi
+
+      - name: 📊 What-If Analysis
+        id: whatif
+        if: |
+          steps.discover-bicep.outputs.templates_found == 'true' &&
+          github.event.inputs.skip_validation != 'true' &&
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch')
+        run: |
+          echo "📊 Running What-If analysis for sandbox deployment..."
+
+          MAIN_TEMPLATE="${{ steps.discover-bicep.outputs.main_template }}"
+          PARAMETERS_FILE="${{ steps.discover-bicep.outputs.parameters_file }}"
+          ENVIRONMENT="${{ github.event.inputs.environment || 'sandbox' }}"
+
+          echo "🎯 Template: $MAIN_TEMPLATE"
+          echo "📝 Parameters: $PARAMETERS_FILE"
+          echo "🏷️ Environment: $ENVIRONMENT"
+
+          # Prepare deployment command
+          DEPLOY_CMD="az deployment sub what-if --location westeurope --template-file $MAIN_TEMPLATE"
+
+          if [[ -n "$PARAMETERS_FILE" ]]; then
+            DEPLOY_CMD="$DEPLOY_CMD --parameters $PARAMETERS_FILE"
+          fi
+
+          # Add environment parameter override
+          DEPLOY_CMD="$DEPLOY_CMD environment=$ENVIRONMENT"
+
+          echo "🚀 What-If Command: $DEPLOY_CMD"
+
+          # Run What-If analysis
+          if eval "$DEPLOY_CMD"; then
+            echo "✅ What-If analysis completed successfully"
+            echo "whatif_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ What-If analysis failed"
+            echo "whatif_success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: 📝 Comment PR with What-If Results
+        if: github.event_name == 'pull_request' && steps.discover-bicep.outputs.templates_found == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `## Bicep Sandbox What-If Results 📊
+
+            **Template:** \`${{ steps.discover-bicep.outputs.main_template }}\`
+            **Parameters:** \`${{ steps.discover-bicep.outputs.parameters_file || 'Default values' }}\`
+            **Environment:** \`${{ github.event.inputs.environment || 'sandbox' }}\`
+
+            ### Validation Results
+            - ✅ Bicep build and lint passed
+            - ✅ Security scan completed
+            - ${{ steps.whatif.outputs.whatif_success == 'true' && '✅ What-If analysis passed' || '❌ What-If analysis failed' }}
+
+            ### Next Steps
+            - 📝 Review the What-If results above
+            - 🚀 Merge to deploy to target environment
+
+            ### 🛡️ Security & Compliance
+            - ✅ AVM module version check completed
+            - ✅ Security configuration validation passed
+
+            *Ready for deployment upon merge*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+  bicep-deploy:
+    name: 🚀 Bicep Deploy
+    runs-on: ubuntu-latest
+    needs: bicep-validation
+    if: |
+      needs.bicep-validation.outputs.templates_found == 'true' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch')
+    environment:
+      name: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'sandbox') }}
+      url: https://portal.azure.com
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 📦 Install Bicep CLI
+        run: |
+          az bicep install
+          az bicep upgrade
+
+      - name: 🚀 Deploy Bicep Template
+        id: deploy
+        run: |
+          echo "🚀 Deploying Bicep sandbox template..."
+
+          MAIN_TEMPLATE="${{ needs.bicep-validation.outputs.main_template }}"
+          PARAMETERS_FILE="${{ needs.bicep-validation.outputs.parameters_file }}"
+          ENVIRONMENT="${{ github.event.inputs.environment || 'sandbox' }}"
+          DEPLOYMENT_NAME="alz-sandbox-$(date +%Y%m%d-%H%M%S)"
+
+          echo "🎯 Template: $MAIN_TEMPLATE"
+          echo "📝 Parameters: $PARAMETERS_FILE"
+          echo "🏷️ Environment: $ENVIRONMENT"
+          echo "🏗️ Deployment Name: $DEPLOYMENT_NAME"
+
+          # Prepare deployment command
+          DEPLOY_CMD="az deployment sub create --location westeurope --name $DEPLOYMENT_NAME --template-file $MAIN_TEMPLATE"
+
+          if [[ -n "$PARAMETERS_FILE" ]]; then
+            DEPLOY_CMD="$DEPLOY_CMD --parameters $PARAMETERS_FILE"
+          fi
+
+          # Add environment parameter override
+          DEPLOY_CMD="$DEPLOY_CMD environment=$ENVIRONMENT"
+
+          echo "🚀 Deployment Command: $DEPLOY_CMD"
+
+          # Execute deployment
+          if eval "$DEPLOY_CMD"; then
+            echo "✅ Deployment completed successfully"
+            echo "deployment_name=$DEPLOYMENT_NAME" >> $GITHUB_OUTPUT
+            echo "deployment_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Deployment failed"
+            echo "deployment_success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: 📊 Deployment Outputs
+        id: outputs
+        if: steps.deploy.outputs.deployment_success == 'true'
+        run: |
+          echo "📊 Retrieving deployment outputs..."
+          DEPLOYMENT_NAME="${{ steps.deploy.outputs.deployment_name }}"
+
+          echo "🔍 Deployment: $DEPLOYMENT_NAME"
+
+          # Get deployment outputs
+          az deployment sub show --name "$DEPLOYMENT_NAME" --query "properties.outputs" > deployment-outputs.json
+
+          echo "📋 Deployment Outputs:"
+          cat deployment-outputs.json | jq .
+
+          # Extract key information for validation
+          if jq -e '.connectionInfo' deployment-outputs.json > /dev/null 2>&1; then
+            echo "connection_info_available=true" >> $GITHUB_OUTPUT
+
+            # Extract specific connection details
+            if jq -e '.connectionInfo.value.webApp.hostname' deployment-outputs.json > /dev/null 2>&1; then
+              WEB_APP_URL=$(jq -r '.connectionInfo.value.webApp.hostname' deployment-outputs.json)
+              echo "web_app_url=$WEB_APP_URL" >> $GITHUB_OUTPUT
+            fi
+
+            if jq -e '.connectionInfo.value.containerRegistry.loginServer' deployment-outputs.json > /dev/null 2>&1; then
+              ACR_SERVER=$(jq -r '.connectionInfo.value.containerRegistry.loginServer' deployment-outputs.json)
+              echo "acr_login_server=$ACR_SERVER" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "connection_info_available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 💾 Upload Deployment Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: bicep-deployment-outputs
+          path: deployment-outputs.json
+          retention-days: 30
+
+      - name: 🔍 Validate Deployment
+        if: steps.outputs.outputs.connection_info_available == 'true'
+        run: |
+          echo "🔍 Validating deployed resources..."
+
+          # Check resource groups
+          echo "📋 Checking resource groups..."
+          az group list --query "[?contains(name, 'alz')].{Name:name,Location:location,State:properties.provisioningState}" --output table
+
+          # Test web app if available
+          if [[ -n "${{ steps.outputs.outputs.web_app_url }}" ]]; then
+            echo "🌐 Testing web app connectivity..."
+            WEB_APP_URL="${{ steps.outputs.outputs.web_app_url }}"
+            if curl -s -I "https://$WEB_APP_URL" | grep -q "200\|301\|302"; then
+              echo "✅ Web app is accessible: $WEB_APP_URL"
+            else
+              echo "⚠️ Web app may not be fully ready: $WEB_APP_URL"
+            fi
+          fi
+
+          # Check container registry if available
+          if [[ -n "${{ steps.outputs.outputs.acr_login_server }}" ]]; then
+            echo "🐳 Checking container registry..."
+            ACR_NAME=$(echo "${{ steps.outputs.outputs.acr_login_server }}" | cut -d'.' -f1)
+            az acr show --name "$ACR_NAME" --query "{Name:name,Sku:sku.name,LoginServer:loginServer}" --output table || echo "⚠️ ACR validation skipped"
+          fi
+
+      - name: 📊 Deployment Summary
+        run: |
+          echo "## 🎉 Bicep Sandbox Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Template:** ${{ needs.bicep-validation.outputs.main_template }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment || 'sandbox' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment:** ${{ steps.deploy.outputs.deployment_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔍 Validation Results" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Bicep template validation passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security scan completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Deployment successful" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.outputs.outputs.connection_info_available }}" == "true" ]]; then
+            echo "- ✅ Connection information available" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- View deployment outputs in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Test deployed resources using validation commands" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.destroy }}" == "true" ]]; then
+            echo "- Resources will be cleaned up automatically" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  bicep-cleanup:
+    name: 🗑️ Bicep Cleanup (Test Resources)
+    runs-on: ubuntu-latest
+    needs: [bicep-validation, bicep-deploy]
+    if: |
+      always() &&
+      github.event.inputs.destroy == 'true' &&
+      needs.bicep-deploy.result == 'success'
+    environment:
+      name: cleanup
+
+    steps:
+      - name: ⏱️ Wait Before Cleanup
+        run: |
+          echo "⏱️ Waiting 5 minutes before cleanup to allow testing..."
+          sleep 300
+
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🗑️ Cleanup Resources
+        run: |
+          echo "🗑️ Cleaning up sandbox resources..."
+          ENVIRONMENT="${{ github.event.inputs.environment || 'sandbox' }}"
+
+          echo "🔍 Finding resource groups for environment: $ENVIRONMENT"
+
+          # Find and delete resource groups
+          rg_list=$(az group list --query "[?contains(name, 'alz') && contains(name, '$ENVIRONMENT')].name" --output tsv)
+
+          if [[ -n "$rg_list" ]]; then
+            echo "🗑️ Found resource groups to delete:"
+            echo "$rg_list"
+
+            while IFS= read -r rg_name; do
+              if [[ -n "$rg_name" ]]; then
+                echo "🗑️ Deleting resource group: $rg_name"
+                az group delete --name "$rg_name" --yes --no-wait
+              fi
+            done <<< "$rg_list"
+
+            echo "✅ Cleanup initiated for all sandbox resource groups"
+          else
+            echo "ℹ️ No resource groups found for cleanup"
+          fi
+
+      - name: 📊 Cleanup Summary
+        run: |
+          echo "## 🗑️ Bicep Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment || 'sandbox' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Cleanup Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Cleanup initiated (resources deleting asynchronously)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Cleanup Actions" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔍 Identified sandbox resource groups" >> $GITHUB_STEP_SUMMARY
+          echo "- 🗑️ Initiated resource group deletion" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏱️ Deletion will complete in background" >> $GITHUB_STEP_SUMMARY

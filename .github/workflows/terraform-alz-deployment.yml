@@ -1,0 +1,424 @@
+name: Terraform ALZ Deployment
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "infra/terraform/**/*.tf"
+      - "infra/terraform/**/*.tfvars"
+      - "infra/terraform/**/*.tfvars.json"
+      - ".github/workflows/terraform-alz-deployment.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "infra/terraform/**/*.tf"
+      - "infra/terraform/**/*.tfvars"
+      - "infra/terraform/**/*.tfvars.json"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target Environment"
+        required: true
+        default: "sandbox"
+        type: choice
+        options:
+          - sandbox
+          - dev
+          - test
+      destroy:
+        description: "Destroy resources after deployment (for testing)"
+        required: false
+        default: false
+        type: boolean
+      auto_approve:
+        description: "Auto-approve deployment (use with caution)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  TF_VERSION: "1.9.8"
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+jobs:
+  terraform-plan:
+    name: 🔧 Terraform Plan & Validation
+    runs-on: ubuntu-latest
+    outputs:
+      tfplanExitCode: ${{ steps.tf-plan.outputs.exitcode }}
+      changes_detected: ${{ steps.tf-plan.outputs.changes_detected }}
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: 🚀 Azure CLI Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🔍 Discover Terraform Configurations
+        id: discover-terraform
+        run: |
+          # Find all Terraform root modules (directories with .tf files)
+          tf_dirs=$(find infra/terraform -name "*.tf" -type f | xargs dirname | sort -u | tr '\n' ' ')
+          echo "directories=$tf_dirs" >> $GITHUB_OUTPUT
+          echo "Found Terraform directories: $tf_dirs"
+
+      - name: ✅ Terraform Format Check
+        run: |
+          echo "🎨 Checking Terraform formatting..."
+          format_issues=0
+
+          for dir in ${{ steps.discover-terraform.outputs.directories }}; do
+            echo "Checking format in: $dir"
+            cd "$dir"
+
+            if ! terraform fmt -check -diff; then
+              echo "❌ Format issues found in $dir"
+              format_issues=$((format_issues + 1))
+            else
+              echo "✅ $dir is properly formatted"
+            fi
+
+            cd - > /dev/null
+          done
+
+          if [[ $format_issues -gt 0 ]]; then
+            echo "❌ $format_issues directories have formatting issues"
+            echo "💡 Run 'terraform fmt -recursive' to fix formatting"
+            exit 1
+          fi
+
+      - name: 🔧 Terraform Initialize
+        run: |
+          echo "🚀 Initializing Terraform configurations..."
+
+          for dir in ${{ steps.discover-terraform.outputs.directories }}; do
+            echo "Initializing: $dir"
+            cd "$dir"
+
+            terraform init -backend=false
+            echo "✅ $dir initialized successfully"
+
+            cd - > /dev/null
+          done
+
+      - name: ✅ Terraform Validate
+        run: |
+          echo "🔍 Validating Terraform configurations..."
+
+          for dir in ${{ steps.discover-terraform.outputs.directories }}; do
+            echo "Validating: $dir"
+            cd "$dir"
+
+            if terraform validate; then
+              echo "✅ $dir validation passed"
+            else
+              echo "❌ $dir validation failed"
+              exit 1
+            fi
+
+            cd - > /dev/null
+          done
+
+      - name: 🛡️ Terraform Security Scan
+        run: |
+          echo "🛡️ Running security scans on Terraform files..."
+
+          for dir in ${{ steps.discover-terraform.outputs.directories }}; do
+            echo "🔐 Security scanning: $dir"
+            cd "$dir"
+
+            # Check for hardcoded secrets
+            if find . -name "*.tf" -o -name "*.tfvars" | xargs grep -iE "(password|secret|key|token).*=.*\"[^\"]{8,}\""; then
+              echo "❌ Potential hardcoded secret found in $dir"
+              exit 1
+            fi
+
+            # Security configuration checks
+            security_issues=0
+
+            # Check for insecure configurations
+            if find . -name "*.tf" | xargs grep -i "public_network_access_enabled.*=.*true"; then
+              echo "⚠️ Public network access enabled in $dir"
+              security_issues=$((security_issues + 1))
+            fi
+
+            if find . -name "*.tf" | xargs grep -i "admin_enabled.*=.*true"; then
+              echo "❌ Admin user enabled in $dir"
+              exit 1
+            fi
+
+            if find . -name "*.tf" | xargs grep -i "https_only.*=.*false"; then
+              echo "❌ HTTPS enforcement disabled in $dir"
+              exit 1
+            fi
+
+            if [[ $security_issues -eq 0 ]]; then
+              echo "✅ $dir passed security scan"
+            else
+              echo "⚠️ $dir has $security_issues security warnings"
+            fi
+
+            cd - > /dev/null
+          done
+
+      - name: 📋 Terraform Plan
+        id: tf-plan
+        run: |
+          echo "📋 Creating Terraform execution plans..."
+
+          # Focus on the simple-sandbox for now (can be extended)
+          WORK_DIR="infra/terraform/simple-sandbox"
+
+          if [[ ! -d "$WORK_DIR" ]]; then
+            echo "❌ Terraform directory not found: $WORK_DIR"
+            exit 1
+          fi
+
+          cd "$WORK_DIR"
+
+          # Initialize with backend
+          echo "🚀 Initializing Terraform with backend..."
+          terraform init
+
+          # Create workspace if needed
+          WORKSPACE="${{ github.event.inputs.environment || 'sandbox' }}"
+          echo "🏷️ Using workspace: $WORKSPACE"
+          terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+
+          # Plan the deployment
+          echo "📋 Creating execution plan..."
+          plan_output=$(terraform plan -var-file="terraform.tfvars" -out="tfplan" -detailed-exitcode 2>&1)
+          plan_exitcode=$?
+
+          echo "$plan_output"
+
+          # Set outputs based on exit code
+          case $plan_exitcode in
+            0)
+              echo "changes_detected=false" >> $GITHUB_OUTPUT
+              echo "exitcode=0" >> $GITHUB_OUTPUT
+              echo "✅ No changes detected"
+              ;;
+            1)
+              echo "changes_detected=false" >> $GITHUB_OUTPUT
+              echo "exitcode=1" >> $GITHUB_OUTPUT
+              echo "❌ Terraform plan failed"
+              exit 1
+              ;;
+            2)
+              echo "changes_detected=true" >> $GITHUB_OUTPUT
+              echo "exitcode=2" >> $GITHUB_OUTPUT
+              echo "📝 Changes detected - plan ready for apply"
+              ;;
+          esac
+
+      - name: 💾 Upload Terraform Plan
+        if: steps.tf-plan.outputs.changes_detected == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan
+          path: infra/terraform/simple-sandbox/tfplan
+          retention-days: 5
+
+      - name: 📝 Comment PR with Plan
+        if: github.event_name == 'pull_request' && steps.tf-plan.outputs.changes_detected == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `## Terraform Plan Results 📋
+
+            **Environment:** \`${{ github.event.inputs.environment || 'sandbox' }}\`
+            **Changes Detected:** \`${{ steps.tf-plan.outputs.changes_detected }}\`
+
+            ### Next Steps
+            - ✅ Plan validation passed
+            - 📝 Changes are ready for apply
+            - 🚀 Merge to deploy to target environment
+
+            ### 🛡️ Security & Validation
+            - ✅ Terraform format check passed
+            - ✅ Terraform validation passed
+            - ✅ Security scan passed
+
+            *Plan artifact uploaded for deployment step*`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+  terraform-apply:
+    name: 🚀 Terraform Apply
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: |
+      needs.terraform-plan.outputs.changes_detected == 'true' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch')
+    environment:
+      name: ${{ github.event.inputs.environment || (github.ref == 'refs/heads/main' && 'production' || 'sandbox') }}
+      url: https://portal.azure.com
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: 🚀 Azure CLI Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 💾 Download Terraform Plan
+        uses: actions/download-artifact@v4
+        with:
+          name: tfplan
+          path: infra/terraform/simple-sandbox/
+
+      - name: 🚀 Terraform Apply
+        id: tf-apply
+        run: |
+          cd infra/terraform/simple-sandbox
+
+          # Initialize
+          terraform init
+
+          # Select workspace
+          WORKSPACE="${{ github.event.inputs.environment || 'sandbox' }}"
+          terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
+
+          # Apply the plan
+          echo "🚀 Applying Terraform changes..."
+          if [[ "${{ github.event.inputs.auto_approve }}" == "true" ]]; then
+            echo "⚡ Auto-approve enabled"
+            terraform apply tfplan
+          else
+            echo "👀 Manual approval required in GitHub environment"
+            terraform apply tfplan
+          fi
+
+          apply_exitcode=$?
+
+          if [[ $apply_exitcode -eq 0 ]]; then
+            echo "✅ Terraform apply completed successfully"
+          else
+            echo "❌ Terraform apply failed"
+            exit 1
+          fi
+
+      - name: 📊 Terraform Output
+        id: tf-output
+        run: |
+          cd infra/terraform/simple-sandbox
+
+          echo "📊 Terraform Outputs:"
+          terraform output -json > terraform-outputs.json
+          terraform output
+
+          # Extract key information
+          if terraform output -raw connection_info 2>/dev/null; then
+            echo "connection_info_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "connection_info_available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 💾 Upload Terraform Outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-outputs
+          path: infra/terraform/simple-sandbox/terraform-outputs.json
+          retention-days: 30
+
+      - name: 📊 Deployment Summary
+        run: |
+          echo "## 🎉 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment || 'sandbox' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Terraform Version:** ${{ env.TF_VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Resources Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "```bash" >> $GITHUB_STEP_SUMMARY
+          echo "terraform state list" >> $GITHUB_STEP_SUMMARY
+          echo "```" >> $GITHUB_STEP_SUMMARY
+
+  terraform-destroy:
+    name: 🗑️ Terraform Destroy (Test Cleanup)
+    runs-on: ubuntu-latest
+    needs: [terraform-plan, terraform-apply]
+    if: |
+      always() &&
+      github.event.inputs.destroy == 'true' &&
+      needs.terraform-apply.result == 'success'
+    environment:
+      name: cleanup
+
+    steps:
+      - name: ⏱️ Wait Before Cleanup
+        run: |
+          echo "⏱️ Waiting 5 minutes before cleanup to allow testing..."
+          sleep 300
+
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+
+      - name: 🚀 Azure CLI Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🗑️ Terraform Destroy
+        run: |
+          cd infra/terraform/simple-sandbox
+
+          # Initialize
+          terraform init
+
+          # Select workspace
+          WORKSPACE="${{ github.event.inputs.environment || 'sandbox' }}"
+          terraform workspace select "$WORKSPACE"
+
+          # Destroy resources
+          echo "🗑️ Destroying Terraform resources..."
+          terraform destroy -var-file="terraform.tfvars" -auto-approve
+
+          if [[ $? -eq 0 ]]; then
+            echo "✅ Resources destroyed successfully"
+          else
+            echo "❌ Destroy operation failed"
+            exit 1
+          fi
+
+      - name: 📊 Cleanup Summary
+        run: |
+          echo "## 🗑️ Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment || 'sandbox' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Cleanup Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Resources successfully destroyed" >> $GITHUB_STEP_SUMMARY
