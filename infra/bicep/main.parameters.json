@@ -1,0 +1,63 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "subscriptionAliasEnabled": {
+      "value": true
+    },
+    "subscriptionDisplayName": {
+      "value": "Azure Landing Zone - Key Vault Dev"
+    },
+    "subscriptionAliasName": {
+      "value": "alz-keyvault-dev"
+    },
+    "subscriptionBillingScope": {
+      "value": ""
+    },
+    "subscriptionWorkload": {
+      "value": "DevTest"
+    },
+    "existingSubscriptionId": {
+      "value": ""
+    },
+    "subscriptionManagementGroupAssociationEnabled": {
+      "value": true
+    },
+    "subscriptionManagementGroupId": {
+      "value": ""
+    },
+    "environment": {
+      "value": "dev"
+    },
+    "workloadName": {
+      "value": "landingzone"
+    },
+    "location": {
+      "value": "westeurope"
+    },
+    "virtualNetworkEnabled": {
+      "value": true
+    },
+    "virtualNetworkName": {
+      "value": "vnet-landingzone-dev"
+    },
+    "virtualNetworkAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "keyVaultEnabled": {
+      "value": true
+    },
+    "keyVaultNamePrefix": {
+      "value": "kv-avm-lz"
+    },
+    "enableDiagnostics": {
+      "value": true
+    },
+    "enablePrivateEndpoint": {
+      "value": false
+    },
+    "roleAssignments": {
+      "value": []
+    }
+  }
+}

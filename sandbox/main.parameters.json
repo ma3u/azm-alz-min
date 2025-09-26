@@ -1,0 +1,36 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2018-05-01/subscriptionDeploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": {
+      "value": "westeurope"
+    },
+    "environment": {
+      "value": "sandbox"
+    },
+    "workloadName": {
+      "value": "alz-sandbox"
+    },
+    "virtualNetworkEnabled": {
+      "value": true
+    },
+    "virtualNetworkAddressPrefix": {
+      "value": "10.0.0.0/16"
+    },
+    "keyVaultEnabled": {
+      "value": true
+    },
+    "keyVaultNamePrefix": {
+      "value": "kv-alz-sb"
+    },
+    "enableDiagnostics": {
+      "value": true
+    },
+    "enablePrivateEndpoint": {
+      "value": false
+    },
+    "roleAssignments": {
+      "value": []
+    }
+  }
+}
