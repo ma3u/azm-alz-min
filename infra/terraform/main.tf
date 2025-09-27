@@ -144,7 +144,7 @@ resource "azurerm_key_vault" "main" {
   tenant_id                  = data.azurerm_client_config.current.tenant_id
   sku_name                   = "premium"
   soft_delete_retention_days = 90
-  purge_protection_enabled   = var.environment == "prod" ? true : false
+  purge_protection_enabled   = true # Enable for all environments for better security
 
   # Modern RBAC authorization instead of access policies
   enable_rbac_authorization = true

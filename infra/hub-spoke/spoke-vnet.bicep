@@ -392,7 +392,7 @@ module spokeRouteTable 'br/public:avm/res/network/route-table:0.2.2' = {
 module storageAccount 'br/public:avm/res/storage/storage-account:0.9.1' = if (enableStorage) {
   name: 'storageAccountDeployment'
   params: {
-    name: 'st${organizationPrefix}spoke${environment}${take(uniqueString(resourceGroup().id), 8)}'
+    name: 'st${toLower(organizationPrefix)}spoke${toLower(environment)}${take(uniqueString(resourceGroup().id), 8)}'
     location: location
     tags: commonTags
 
@@ -441,7 +441,7 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.1.1' = if (enableWebAp
       capacity: 1
     }
 
-    kind: 'app'
+    kind: 'Linux'
   }
 }
 
@@ -542,7 +542,8 @@ module containerAppJob 'br/public:avm/res/app/job:0.1.1' = if (enableContainerAp
     location: location
     tags: commonTags
 
-    managedEnvironmentResourceId: containerAppsEnvironment.outputs.resourceId
+    environmentResourceId: containerAppsEnvironment.outputs.resourceId
+    triggerType: 'Schedule'
 
     containers: [
       {
@@ -575,7 +576,7 @@ module containerAppJob 'br/public:avm/res/app/job:0.1.1' = if (enableContainerAp
 // POSTGRESQL FLEXIBLE SERVER
 // =======================
 
-module postgreSQLServer 'br/public:avm/res/db-for-postgresql/flexible-server:0.1.4' = if (enablePostgreSQL) {
+module postgreSQLServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.13.1' = if (enablePostgreSQL) {
   name: 'postgreSQLServerDeployment'
   params: {
     name: 'psql-${namingPrefix}-${take(uniqueString(resourceGroup().id), 8)}'
@@ -622,7 +623,7 @@ module appGatewayPublicIp 'br/public:avm/res/network/public-ip-address:0.2.3' = 
     name: 'pip-${namingPrefix}-appgateway'
     location: location
     tags: commonTags
-    publicIpAllocationMethod: 'Static'
+    publicIPAllocationMethod: 'Static'
     skuName: 'Standard'
     skuTier: 'Regional'
     zones: ['1', '2', '3']
@@ -630,7 +631,7 @@ module appGatewayPublicIp 'br/public:avm/res/network/public-ip-address:0.2.3' = 
 }
 
 // Application Gateway
-module applicationGateway 'br/public:avm/res/network/application-gateway:0.1.2' = if (enableAppGateway) {
+module applicationGateway 'br/public:avm/res/network/application-gateway:0.7.2' = if (enableAppGateway) {
   name: 'applicationGatewayDeployment'
   params: {
     name: 'agw-${namingPrefix}'

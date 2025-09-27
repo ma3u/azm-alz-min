@@ -190,6 +190,10 @@ resource "azurerm_key_vault_secret" "sandbox_test" {
   value        = "This is a test secret for AVM validation"
   key_vault_id = azurerm_key_vault.sandbox.id
 
+  # Add content type and expiration for compliance
+  content_type    = "text/plain"
+  expiration_date = timeadd(timestamp(), "8760h") # 1 year from now
+
   tags = local.common_tags
 
   depends_on = [azurerm_key_vault.sandbox]

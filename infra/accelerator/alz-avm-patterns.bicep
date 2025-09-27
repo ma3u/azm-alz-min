@@ -371,7 +371,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.14.0' = if (a
   name: 'storageAccountDeployment'
   scope: resourceGroup(spokeLandingZone.outputs.subscriptionId, 'rg-${organizationPrefix}-spoke-${environment}')
   params: {
-    name: 'st${organizationPrefix}${environment}${take(uniqueString(spokeLandingZone.outputs.subscriptionId), 8)}'
+    name: 'st${toLower(organizationPrefix)}${toLower(environment)}${take(uniqueString(spokeLandingZone.outputs.subscriptionId), 8)}'
     location: location
     tags: commonTags
 

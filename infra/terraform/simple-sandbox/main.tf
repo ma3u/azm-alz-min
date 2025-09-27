@@ -23,7 +23,6 @@ provider "azurerm" {
 }
 
 # Get current subscription for unique naming
-data "azurerm_client_config" "current" {}
 data "azurerm_subscription" "current" {}
 
 # Random string for unique naming

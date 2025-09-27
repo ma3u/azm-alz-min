@@ -295,7 +295,7 @@ module firewallPublicIp 'br/public:avm/res/network/public-ip-address:0.2.3' = if
     name: 'pip-${namingPrefix}-firewall'
     location: location
     tags: commonTags
-    publicIpAllocationMethod: 'Static'
+    publicIPAllocationMethod: 'Static'
     skuName: 'Standard'
     skuTier: 'Regional'
     zones: ['1', '2', '3']
@@ -378,7 +378,7 @@ module firewallPolicy 'br/public:avm/res/network/firewall-policy:0.1.3' = if (en
 }
 
 // Azure Firewall
-module azureFirewall 'br/public:avm/res/network/azure-firewall:0.1.3' = if (enableFirewall) {
+module azureFirewall 'br/public:avm/res/network/azure-firewall:0.8.0' = if (enableFirewall) {
   name: 'azureFirewallDeployment'
   params: {
     name: 'afw-${namingPrefix}'
@@ -424,14 +424,14 @@ module bastionPublicIp 'br/public:avm/res/network/public-ip-address:0.2.3' = if 
     name: 'pip-${namingPrefix}-bastion'
     location: location
     tags: commonTags
-    publicIpAllocationMethod: 'Static'
+    publicIPAllocationMethod: 'Static'
     skuName: 'Standard'
     skuTier: 'Regional'
   }
 }
 
 // Azure Bastion
-module azureBastion 'br/public:avm/res/network/bastion-host:0.1.2' = if (enableBastion) {
+module azureBastion 'br/public:avm/res/network/bastion-host:0.8.0' = if (enableBastion) {
   name: 'azureBastionDeployment'
   params: {
     name: 'bas-${namingPrefix}'

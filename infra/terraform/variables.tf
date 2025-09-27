@@ -107,8 +107,3 @@ variable "role_assignments" {
 }
 
 # Additional Configuration Variables
-variable "additional_tags" {
-  description = "Additional tags to apply to resources"
-  type        = map(string)
-  default     = {}
-}

@@ -101,15 +101,7 @@ jobs:
           if [[ ${#security_issues[@]} -gt 0 ]]; then
             echo "❌ Security issues found in $file:"
             printf '%s\n' "${security_issues[@]}" | sed 's/^/  - /'
-
-            # Create SARIF report entry
-            cat >> security-reports/bicep-security.json << EOF
-{
-  "file": "$file",
-  "issues": [$(printf '"%s",' "${security_issues[@]}" | sed 's/,$//')],
-  "severity": "warning"
-}
-EOF
+            echo "$file: ${security_issues[*]}" >> security-reports/bicep-security.txt
           else
             echo "✅ $file passed security analysis"
           fi
@@ -294,12 +286,12 @@ EOF
 
         # Create markdown report
         cat > security-report.md << 'EOF'
-# 🛡️ Infrastructure Security Report
+# Infrastructure Security Report
 
-Generated: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-Repository: ${{ github.repository }}
-Branch: ${{ github.ref_name }}
-Commit: ${{ github.sha }}
+Generated:
+Repository: Azure Landing Zone
+Branch: main
+Commit: latest
 
 ## 📋 Summary
 
