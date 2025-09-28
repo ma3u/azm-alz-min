@@ -1,0 +1,740 @@
+# Azure DevOps Pipeline for Azure Landing Zone
+# Multi-stage deployment with Terraform 1.9, security scanning, and approval gates
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+      - feature/*
+  paths:
+    include:
+      - infra/**
+      - azure-pipelines.yml
+      - scripts/**
+      - .checkov.yaml
+
+pr:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - infra/**
+      - azure-pipelines.yml
+      - scripts/**
+
+# Pipeline variables
+variables:
+  # Global settings
+  - name: azureServiceConnection
+    value: "azure-landingzone-service-connection"
+  - name: terraformVersion
+    value: "1.9.5"
+  - name: azureRegion
+    value: "westeurope"
+  - name: vmImageName
+    value: "ubuntu-latest"
+  - name: pythonVersion
+    value: "3.11"
+
+  # Environment-specific variables
+  - group: alz-sandbox-vars
+  - group: alz-common-vars
+
+# Define stages
+stages:
+  # =====================================================
+  # STAGE 1: BUILD & VALIDATION
+  # =====================================================
+
+  - stage: BuildAndValidation
+    displayName: "🔍 Build & Validation"
+    jobs:
+      - job: PreCommitValidation
+        displayName: "🔍 Pre-commit Validation"
+        pool:
+          vmImage: $(vmImageName)
+
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            displayName: "🛒 Checkout Repository"
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+              addToPath: true
+            displayName: "🐍 Setup Python"
+
+          - script: |
+              # Install pre-commit and validation tools
+              pip install pre-commit==3.5.0
+              pip install checkov==3.0.34
+              pip install yamllint==1.33.0
+
+              echo "✅ Validation tools installed"
+            displayName: "📦 Install Validation Tools"
+
+          - script: |
+              # Install and run pre-commit hooks
+              pre-commit install
+
+              # Run pre-commit on all files
+              pre-commit run --all-files || {
+                echo "⚠️ Pre-commit validation found issues"
+                echo "##vso[task.logissue type=warning]Pre-commit hooks failed - see details above"
+                # Don't fail build for warnings
+                exit 0
+              }
+
+              echo "✅ Pre-commit validation completed"
+            displayName: "🔍 Run Pre-commit Hooks"
+            continueOnError: true
+
+      - job: SecurityScanning
+        displayName: "🛡️ Security Scanning"
+        dependsOn: PreCommitValidation
+        pool:
+          vmImage: $(vmImageName)
+
+        steps:
+          - checkout: self
+            fetchDepth: 0
+            displayName: "🛒 Checkout Repository"
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: $(pythonVersion)
+              addToPath: true
+            displayName: "🐍 Setup Python"
+
+          - script: |
+              # Install Checkov
+              pip install checkov==3.0.34
+
+              echo "✅ Security scanning tools installed"
+            displayName: "📦 Install Security Tools"
+
+          - script: |
+              # Create reports directory
+              mkdir -p $(Agent.TempDirectory)/reports
+
+              # Run Checkov security scan
+              checkov \
+                --config-file .checkov.yaml \
+                --directory infra/ \
+                --output cli \
+                --output sarif \
+                --output-file-path $(Agent.TempDirectory)/reports/ \
+                --quiet \
+                --compact || {
+                echo "⚠️ Security vulnerabilities detected"
+                echo "##vso[task.logissue type=warning]Security scan found issues - review required"
+                # Allow pipeline to continue for sandbox
+                exit 0
+              }
+
+              echo "✅ Security scanning completed"
+            displayName: "🛡️ Run Checkov Security Scan"
+            continueOnError: true
+
+          - task: PublishTestResults@2
+            condition: always()
+            inputs:
+              testResultsFormat: "JUnit"
+              testResultsFiles: "$(Agent.TempDirectory)/reports/checkov.junit.xml"
+              testRunTitle: "Checkov Security Scan"
+            displayName: "📊 Publish Security Scan Results"
+
+      - job: TerraformValidation
+        displayName: "🔧 Terraform Validation"
+        dependsOn: SecurityScanning
+        pool:
+          vmImage: $(vmImageName)
+
+        steps:
+          - checkout: self
+            displayName: "🛒 Checkout Repository"
+
+          - script: |
+              # Install Terraform 1.9
+              wget -q https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+              unzip -q terraform_$(terraformVersion)_linux_amd64.zip
+              sudo mv terraform /usr/local/bin/terraform
+              sudo chmod +x /usr/local/bin/terraform
+
+              # Create terraform1.9 symlink for consistency with documentation
+              sudo ln -sf /usr/local/bin/terraform /usr/local/bin/terraform1.9
+
+              # Verify installation
+              terraform version
+              terraform1.9 version
+
+              echo "✅ Terraform $(terraformVersion) installed"
+            displayName: "🔧 Install Terraform 1.9"
+
+          - script: |
+              echo "🔧 Validating Terraform version requirements..."
+
+              # Run version check script
+              ./scripts/check-terraform-version.sh infra/terraform/simple-sandbox/main.tf || {
+                echo "##vso[task.logissue type=warning]Terraform version validation issues found"
+                exit 0  # Don't fail for warnings
+              }
+
+              echo "✅ Terraform version validation completed"
+            displayName: "🔧 Check Terraform Version Requirements"
+            continueOnError: true
+
+          - script: |
+              cd infra/terraform/simple-sandbox
+
+              echo "🔍 Initializing Terraform..."
+              terraform init -backend=false
+
+              echo "🔍 Validating Terraform configuration..."
+              terraform validate
+
+              echo "🔍 Checking Terraform formatting..."
+              terraform fmt -check=true -diff=true
+
+              echo "✅ Terraform validation passed"
+            displayName: "🔍 Validate Terraform Configuration"
+
+  # =====================================================
+  # STAGE 2: TERRAFORM PLAN (SANDBOX)
+  # =====================================================
+
+  - stage: TerraformPlanSandbox
+    displayName: "📋 Terraform Plan (Sandbox)"
+    dependsOn: BuildAndValidation
+    condition: succeeded()
+    jobs:
+      - job: TerraformPlan
+        displayName: "📋 Generate Terraform Plan"
+        pool:
+          vmImage: $(vmImageName)
+
+        steps:
+          - checkout: self
+            displayName: "🛒 Checkout Repository"
+
+          - script: |
+              # Install Terraform 1.9
+              wget -q https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+              unzip -q terraform_$(terraformVersion)_linux_amd64.zip
+              sudo mv terraform /usr/local/bin/terraform
+              sudo chmod +x /usr/local/bin/terraform
+              sudo ln -sf /usr/local/bin/terraform /usr/local/bin/terraform1.9
+
+              terraform version
+            displayName: "🔧 Install Terraform 1.9"
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: "bash"
+              scriptLocation: "inlineScript"
+              workingDirectory: "infra/terraform/simple-sandbox"
+              inlineScript: |
+                echo "📋 Initializing Terraform for planning..."
+
+                # Initialize Terraform with Azure backend
+                terraform init \
+                  -backend-config="resource_group_name=$(TF_VAR_backend_resource_group)" \
+                  -backend-config="storage_account_name=$(TF_VAR_backend_storage_account)" \
+                  -backend-config="container_name=$(TF_VAR_backend_container)" \
+                  -backend-config="key=alz-sandbox.tfstate"
+
+                echo "📋 Generating Terraform plan..."
+
+                # Create Terraform plan
+                terraform plan \
+                  -var-file="terraform.tfvars" \
+                  -var="subscription_id=$(ARM_SUBSCRIPTION_ID)" \
+                  -var="tenant_id=$(ARM_TENANT_ID)" \
+                  -var="client_id=$(ARM_CLIENT_ID)" \
+                  -var="client_secret=$(ARM_CLIENT_SECRET)" \
+                  -out="tfplan" \
+                  -detailed-exitcode \
+                  -no-color | tee terraform-plan-output.txt
+
+                # Capture plan exit code
+                PLAN_EXIT_CODE=$?
+                echo "Plan exit code: $PLAN_EXIT_CODE"
+
+                if [[ $PLAN_EXIT_CODE -eq 1 ]]; then
+                  echo "❌ Terraform plan failed"
+                  exit 1
+                elif [[ $PLAN_EXIT_CODE -eq 2 ]]; then
+                  echo "📝 Terraform plan detected changes"
+                  echo "##vso[task.setvariable variable=planHasChanges;isOutput=true]true"
+                else
+                  echo "✅ Terraform plan - no changes needed"
+                  echo "##vso[task.setvariable variable=planHasChanges;isOutput=true]false"
+                fi
+
+                # Generate human-readable plan summary
+                terraform show -no-color tfplan > terraform-plan-details.txt
+
+                echo "✅ Terraform plan generation completed"
+            name: planStep
+            displayName: "📋 Generate Terraform Plan"
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              pathToPublish: "infra/terraform/simple-sandbox"
+              artifactName: "terraform-plan-sandbox"
+              publishLocation: "Container"
+            displayName: "📦 Publish Terraform Plan Artifacts"
+
+  # =====================================================
+  # STAGE 3: DEPLOYMENT APPROVAL & SANDBOX APPLY
+  # =====================================================
+
+  - stage: DeploySandbox
+    displayName: "🚀 Deploy to Sandbox"
+    dependsOn:
+      - TerraformPlanSandbox
+    condition: and(succeeded(), eq(dependencies.TerraformPlanSandbox.outputs['TerraformPlan.planStep.planHasChanges'], 'true'))
+    jobs:
+      - deployment: DeployToSandbox
+        displayName: "🚀 Deploy ALZ to Sandbox"
+        pool:
+          vmImage: $(vmImageName)
+        environment: "alz-sandbox"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  displayName: "🛒 Checkout Repository"
+
+                - download: current
+                  artifact: "terraform-plan-sandbox"
+                  displayName: "📥 Download Terraform Plan"
+
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: "bash"
+                    scriptLocation: "inlineScript"
+                    inlineScript: |
+                      chmod +x ./scripts/deployment-coordinator.sh
+
+                      echo "🎯 Attempting to acquire deployment lock..."
+                      ./scripts/deployment-coordinator.sh acquire azdevops sandbox || {
+                        echo "❌ Failed to acquire deployment lock"
+                        echo "Another deployment may be in progress (GitHub Actions or Azure DevOps)"
+
+                        # Check lock status for details
+                        ./scripts/deployment-coordinator.sh check sandbox || true
+
+                        echo "💡 Options:"
+                        echo "  1. Wait for the other deployment to complete"
+                        echo "  2. Cancel this deployment"
+                        echo "  3. Check the other pipeline's status"
+                        echo "##vso[task.logissue type=error]Deployment lock acquisition failed - another deployment in progress"
+                        exit 1
+                      }
+
+                      echo "✅ Deployment lock acquired - proceeding with deployment"
+                      echo "##vso[task.setvariable variable=deploymentLockAcquired]true"
+                  displayName: "🎯 Acquire Deployment Lock"
+
+                - script: |
+                    # Install Terraform 1.9
+                    wget -q https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+                    unzip -q terraform_$(terraformVersion)_linux_amd64.zip
+                    sudo mv terraform /usr/local/bin/terraform
+                    sudo chmod +x /usr/local/bin/terraform
+                    sudo ln -sf /usr/local/bin/terraform /usr/local/bin/terraform1.9
+
+                    terraform version
+                  displayName: "🔧 Install Terraform 1.9"
+
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: "bash"
+                    scriptLocation: "inlineScript"
+                    workingDirectory: "$(Pipeline.Workspace)/terraform-plan-sandbox"
+                    inlineScript: |
+                      echo "🚀 Applying Terraform configuration to sandbox..."
+
+                      # Initialize Terraform (backend already configured from plan stage)
+                      terraform init \
+                        -backend-config="resource_group_name=$(TF_VAR_backend_resource_group)" \
+                        -backend-config="storage_account_name=$(TF_VAR_backend_storage_account)" \
+                        -backend-config="container_name=$(TF_VAR_backend_container)" \
+                        -backend-config="key=alz-sandbox.tfstate"
+
+                      # Apply the pre-approved plan
+                      terraform apply \
+                        -auto-approve \
+                        -no-color \
+                        tfplan | tee terraform-apply-output.txt
+
+                      # Extract outputs for testing
+                      terraform output -json > terraform-outputs.json
+
+                      echo "✅ Terraform deployment completed successfully"
+                  displayName: "🚀 Apply Terraform Configuration"
+
+                - script: |
+                    echo "🧪 Running post-deployment validation tests..."
+
+                    # Wait for resources to be fully provisioned
+                    echo "⏰ Waiting 60 seconds for resources to stabilize..."
+                    sleep 60
+
+                    # Test resource groups
+                    if az group show --name "rg-alz-hub-sandbox" --output none 2>/dev/null; then
+                      echo "✅ Hub resource group exists and is accessible"
+                    else
+                      echo "❌ Hub resource group not found or not accessible"
+                      exit 1
+                    fi
+
+                    if az group show --name "rg-alz-spoke-sandbox" --output none 2>/dev/null; then
+                      echo "✅ Spoke resource group exists and is accessible"
+                    else
+                      echo "❌ Spoke resource group not found or not accessible"
+                      exit 1
+                    fi
+
+                    # Test VNet connectivity
+                    HUB_VNET_ID=$(az network vnet show --resource-group "rg-alz-hub-sandbox" --name "vnet-alz-hub-sandbox" --query id -o tsv 2>/dev/null || echo "")
+                    SPOKE_VNET_ID=$(az network vnet show --resource-group "rg-alz-spoke-sandbox" --name "vnet-alz-spoke-sandbox" --query id -o tsv 2>/dev/null || echo "")
+
+                    if [[ -n "$HUB_VNET_ID" && -n "$SPOKE_VNET_ID" ]]; then
+                      echo "✅ Hub and Spoke VNets exist"
+
+                      # Check peering status
+                      PEERING_STATUS=$(az network vnet peering list --resource-group "rg-alz-hub-sandbox" --vnet-name "vnet-alz-hub-sandbox" --query "[0].peeringState" -o tsv 2>/dev/null || echo "NotFound")
+
+                      if [[ "$PEERING_STATUS" == "Connected" ]]; then
+                        echo "✅ VNet peering is connected and operational"
+                      else
+                        echo "⚠️ VNet peering status: $PEERING_STATUS"
+                      fi
+                    else
+                      echo "⚠️ VNets not found - may not be part of this deployment"
+                    fi
+
+                    # Test web app (if exists)
+                    WEB_APP_NAME=$(az webapp list --resource-group "rg-alz-spoke-sandbox" --query "[0].name" -o tsv 2>/dev/null || echo "")
+                    if [[ -n "$WEB_APP_NAME" ]]; then
+                      WEB_APP_URL=$(az webapp show --resource-group "rg-alz-spoke-sandbox" --name "$WEB_APP_NAME" --query "defaultHostName" -o tsv)
+                      echo "🌐 Testing web application: https://$WEB_APP_URL"
+
+                      if curl -sSf "https://$WEB_APP_URL" > /dev/null 2>&1; then
+                        echo "✅ Web application is accessible and responding"
+                      else
+                        echo "⚠️ Web application not responding (may still be starting)"
+                      fi
+                    fi
+
+                    echo "✅ Post-deployment validation completed"
+                  displayName: "🧪 Post-Deployment Validation"
+
+                - script: |
+                    echo "💰 Analyzing deployment costs..."
+
+                    # Get cost data for the last 7 days
+                    COST_START_DATE=$(date -d '7 days ago' +%Y-%m-%d)
+                    COST_END_DATE=$(date +%Y-%m-%d)
+
+                    echo "📊 Fetching cost data from $COST_START_DATE to $COST_END_DATE"
+
+                    COST_DATA=$(az consumption usage list \
+                      --start-date "$COST_START_DATE" \
+                      --end-date "$COST_END_DATE" \
+                      --query '[].{Resource: instanceName, Cost: pretaxCost, Currency: currency}' \
+                      --output json 2>/dev/null || echo '[]')
+
+                    echo "Cost breakdown:"
+                    echo "$COST_DATA" | jq -r '.[] | "\(.Resource): \(.Cost) \(.Currency)"' 2>/dev/null || echo "Cost data not available"
+
+                    # Calculate total cost
+                    TOTAL_COST=$(echo "$COST_DATA" | jq '[.[].Cost | tonumber] | add // 0' 2>/dev/null || echo "0")
+                    echo "💰 Total estimated cost: $TOTAL_COST USD"
+
+                    # Cost alerting
+                    if (( $(echo "$TOTAL_COST > 50" | bc -l 2>/dev/null || echo 0) )); then
+                      echo "##vso[task.logissue type=warning]⚠️ Cost Alert: Infrastructure costs exceed $50 USD"
+                    elif (( $(echo "$TOTAL_COST > 25" | bc -l 2>/dev/null || echo 0) )); then
+                      echo "##vso[task.logissue type=warning]💡 Cost Notice: Infrastructure costs approaching $25 USD threshold"
+                    fi
+
+                    echo "✅ Cost analysis completed"
+                  displayName: "💰 Cost Analysis"
+                  continueOnError: true
+
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: "bash"
+                    scriptLocation: "inlineScript"
+                    inlineScript: |
+                      chmod +x ./scripts/deployment-coordinator.sh
+
+                      echo "🔓 Releasing deployment lock after successful deployment..."
+                      ./scripts/deployment-coordinator.sh release azdevops sandbox || {
+                        echo "⚠️ Warning: Failed to release deployment lock"
+                        echo "##vso[task.logissue type=warning]Could not release deployment lock - may already be released"
+                        # Don't fail the deployment for this
+                        true
+                      }
+
+                      echo "✅ Deployment lock released - other pipelines can now deploy"
+                  displayName: "🔓 Release Deployment Lock (Post-Deploy)"
+                  condition: succeeded()
+
+                - task: PublishBuildArtifacts@1
+                  inputs:
+                    pathToPublish: "$(Pipeline.Workspace)/terraform-plan-sandbox"
+                    artifactName: "terraform-deployment-sandbox"
+                    publishLocation: "Container"
+                  displayName: "📦 Publish Deployment Artifacts"
+
+  # =====================================================
+  # STAGE 4: TESTING & MONITORING SETUP
+  # =====================================================
+
+  - stage: TestingAndMonitoring
+    displayName: "🧪 Testing & Monitoring"
+    dependsOn: DeploySandbox
+    condition: succeeded()
+    jobs:
+      - job: IntegrationTesting
+        displayName: "🧪 Integration Testing"
+        pool:
+          vmImage: $(vmImageName)
+
+        steps:
+          - checkout: self
+            displayName: "🛒 Checkout Repository"
+
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: "bash"
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                echo "🧪 Running comprehensive integration tests..."
+
+                # Test 1: Resource Group Accessibility
+                echo "🔍 Testing resource group accessibility..."
+                for rg in "rg-alz-hub-sandbox" "rg-alz-spoke-sandbox"; do
+                  if az group show --name "$rg" --output none 2>/dev/null; then
+                    echo "✅ Resource group $rg is accessible"
+                  else
+                    echo "❌ Resource group $rg is not accessible"
+                    exit 1
+                  fi
+                done
+
+                # Test 2: Network Connectivity
+                echo "🌐 Testing network connectivity..."
+
+                # Check VNet peering
+                PEERING_COUNT=$(az network vnet peering list --resource-group "rg-alz-hub-sandbox" --vnet-name "vnet-alz-hub-sandbox" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+                if [[ "$PEERING_COUNT" -gt 0 ]]; then
+                  echo "✅ VNet peering configuration found ($PEERING_COUNT peering(s))"
+
+                  # Check peering state
+                  PEERING_STATE=$(az network vnet peering list --resource-group "rg-alz-hub-sandbox" --vnet-name "vnet-alz-hub-sandbox" --query "[0].peeringState" -o tsv 2>/dev/null || echo "Unknown")
+                  echo "🔗 Peering state: $PEERING_STATE"
+                else
+                  echo "⚠️ No VNet peering found - may not be configured in this deployment"
+                fi
+
+                # Test 3: Application Availability
+                echo "🚀 Testing application availability..."
+
+                APP_COUNT=$(az webapp list --resource-group "rg-alz-spoke-sandbox" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+                if [[ "$APP_COUNT" -gt 0 ]]; then
+                  WEB_APP_URL=$(az webapp list --resource-group "rg-alz-spoke-sandbox" --query "[0].defaultHostName" -o tsv)
+                  echo "🌐 Found web application: $WEB_APP_URL"
+
+                  # Test HTTP response
+                  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$WEB_APP_URL" || echo "000")
+                  echo "📡 HTTP Status: $HTTP_STATUS"
+
+                  if [[ "$HTTP_STATUS" -eq 200 ]]; then
+                    echo "✅ Web application is responding correctly"
+                  elif [[ "$HTTP_STATUS" -eq 403 ]]; then
+                    echo "⚠️ Web application is running but access may be restricted"
+                  else
+                    echo "⚠️ Web application status: $HTTP_STATUS (may be starting up)"
+                  fi
+                else
+                  echo "ℹ️ No web applications found in this deployment"
+                fi
+
+                # Test 4: Storage Account Access
+                echo "💾 Testing storage account access..."
+
+                STORAGE_COUNT=$(az storage account list --resource-group "rg-alz-spoke-sandbox" --query "length(@)" -o tsv 2>/dev/null || echo "0")
+
+                if [[ "$STORAGE_COUNT" -gt 0 ]]; then
+                  STORAGE_NAME=$(az storage account list --resource-group "rg-alz-spoke-sandbox" --query "[0].name" -o tsv)
+                  echo "💾 Found storage account: $STORAGE_NAME"
+
+                  # Check storage account accessibility
+                  if az storage account show --name "$STORAGE_NAME" --resource-group "rg-alz-spoke-sandbox" --output none 2>/dev/null; then
+                    echo "✅ Storage account is accessible"
+                  else
+                    echo "❌ Storage account is not accessible"
+                  fi
+                else
+                  echo "ℹ️ No storage accounts found in this deployment"
+                fi
+
+                echo "✅ Integration testing completed successfully"
+            displayName: "🧪 Run Integration Tests"
+
+      - job: SetupMonitoring
+        displayName: "📊 Setup Monitoring"
+        dependsOn: IntegrationTesting
+        pool:
+          vmImage: $(vmImageName)
+
+        steps:
+          - task: AzureCLI@2
+            inputs:
+              azureSubscription: $(azureServiceConnection)
+              scriptType: "bash"
+              scriptLocation: "inlineScript"
+              inlineScript: |
+                echo "📊 Setting up monitoring and alerting..."
+
+                # Check for Log Analytics workspace
+                LOG_WORKSPACE=$(az monitor log-analytics workspace list --resource-group "rg-alz-hub-sandbox" --query "[0].name" -o tsv 2>/dev/null || echo "")
+
+                if [[ -n "$LOG_WORKSPACE" ]]; then
+                  echo "✅ Log Analytics workspace found: $LOG_WORKSPACE"
+
+                  # Get workspace ID for reference
+                  WORKSPACE_ID=$(az monitor log-analytics workspace show --resource-group "rg-alz-hub-sandbox" --workspace-name "$LOG_WORKSPACE" --query "customerId" -o tsv)
+                  echo "📊 Workspace ID: $WORKSPACE_ID"
+                else
+                  echo "ℹ️ No Log Analytics workspace found in this deployment"
+                fi
+
+                # Create basic cost alert
+                echo "💰 Setting up cost monitoring alert..."
+
+                SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+                # Check if cost alert already exists
+                EXISTING_ALERT=$(az monitor metrics alert list --query "[?contains(name,'alz-sandbox-cost-alert')].name" -o tsv 2>/dev/null || echo "")
+
+                if [[ -z "$EXISTING_ALERT" ]]; then
+                  echo "💡 Cost alert will be configured manually in Azure portal"
+                  echo "   Navigate to Cost Management + Billing > Budgets"
+                  echo "   Create budget alert for subscription: $SUBSCRIPTION_ID"
+                else
+                  echo "✅ Cost alert already configured: $EXISTING_ALERT"
+                fi
+
+                echo "✅ Monitoring setup completed"
+            displayName: "📊 Configure Monitoring"
+            continueOnError: true
+
+  # =====================================================
+  # STAGE 5: CLEANUP (Feature Branches Only)
+  # =====================================================
+
+  - stage: Cleanup
+    displayName: "🧹 Cleanup (Feature Branches)"
+    dependsOn: TestingAndMonitoring
+    condition: and(succeeded(), startsWith(variables['Build.SourceBranch'], 'refs/heads/feature/'))
+    jobs:
+      - job: ManualApprovalForCleanup
+        displayName: "⏸️ Approval Required"
+        pool: server
+        timeoutInMinutes: 4320 # 3 days
+        steps:
+          - task: ManualValidation@0
+            timeoutInMinutes: 4320
+            inputs:
+              notifyUsers: |
+                $(Build.RequestedForEmail)
+              instructions: |
+                🧹 **Feature Branch Cleanup Approval**
+
+                This is a feature branch deployment that will be automatically cleaned up.
+
+                **Branch:** $(Build.SourceBranch)
+                **Resources to clean up:**
+                - rg-alz-hub-sandbox
+                - rg-alz-spoke-sandbox
+
+                **Options:**
+                ✅ **Approve** - Proceed with cleanup (recommended for feature branches)
+                ❌ **Reject** - Keep resources for extended testing (will incur costs)
+
+                💡 You have 3 days to make this decision, after which the pipeline will timeout.
+
+      - deployment: CleanupFeatureBranch
+        displayName: "🧹 Cleanup Feature Branch Resources"
+        dependsOn: ManualApprovalForCleanup
+        pool:
+          vmImage: $(vmImageName)
+        environment: "alz-sandbox-cleanup"
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: "bash"
+                    scriptLocation: "inlineScript"
+                    inlineScript: |
+                      chmod +x ./scripts/deployment-coordinator.sh
+
+                      echo "🔓 Releasing deployment lock..."
+                      ./scripts/deployment-coordinator.sh release azdevops sandbox || {
+                        echo "⚠️ Warning: Failed to release deployment lock"
+                        echo "##vso[task.logissue type=warning]Could not release deployment lock"
+                        # Don't fail cleanup for this
+                        true
+                      }
+
+                      echo "✅ Deployment lock released"
+                  displayName: "🔓 Release Deployment Lock"
+                  condition: always()
+
+                - task: AzureCLI@2
+                  inputs:
+                    azureSubscription: $(azureServiceConnection)
+                    scriptType: "bash"
+                    scriptLocation: "inlineScript"
+                    inlineScript: |
+                      echo "🧹 Starting cleanup of feature branch resources..."
+                      echo "Branch: $(Build.SourceBranch)"
+
+                      # List resources before cleanup
+                      echo "📋 Resources to be cleaned up:"
+                      az group list --query "[?contains(name,'sandbox')].{Name:name, Location:location}" -o table 2>/dev/null || echo "No resource groups found"
+
+                      # Clean up resource groups
+                      for rg in "rg-alz-hub-sandbox" "rg-alz-spoke-sandbox"; do
+                        if az group show --name "$rg" --output none 2>/dev/null; then
+                          echo "🗑️ Deleting resource group: $rg"
+                          az group delete --name "$rg" --yes --no-wait
+                        else
+                          echo "ℹ️ Resource group $rg does not exist or already deleted"
+                        fi
+                      done
+
+                      echo "✅ Cleanup initiated - resources will be deleted asynchronously"
+                      echo "💡 Monitor cleanup progress in Azure Portal"
+                  displayName: "🧹 Delete Feature Branch Resources"

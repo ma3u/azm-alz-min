@@ -36,30 +36,7 @@ provider "azurerm" {
   }
 }
 
-# Variables for Sandbox
-variable "location" {
-  description = "The Azure region for sandbox deployment"
-  type        = string
-  default     = "West Europe"
-}
-
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = "sandbox"
-}
-
-variable "workload_name" {
-  description = "Workload identifier"
-  type        = string
-  default     = "alz-sandbox"
-}
-
-variable "enable_private_endpoint" {
-  description = "Enable private endpoints (typically false for sandbox)"
-  type        = bool
-  default     = false
-}
+# Variables are defined in variables.tf
 
 # Data sources
 data "azurerm_client_config" "current" {}
@@ -206,40 +183,4 @@ resource "azurerm_role_assignment" "current_user_kv_admin" {
   principal_id         = data.azurerm_client_config.current.object_id
 }
 
-# Outputs
-output "resource_group_name" {
-  description = "Name of the created resource group"
-  value       = azurerm_resource_group.sandbox.name
-}
-
-output "key_vault_name" {
-  description = "Name of the created Key Vault"
-  value       = azurerm_key_vault.sandbox.name
-}
-
-output "key_vault_uri" {
-  description = "URI of the created Key Vault"
-  value       = azurerm_key_vault.sandbox.vault_uri
-  sensitive   = true
-}
-
-output "virtual_network_name" {
-  description = "Name of the created Virtual Network"
-  value       = azurerm_virtual_network.sandbox.name
-}
-
-output "log_analytics_workspace_name" {
-  description = "Name of the Log Analytics Workspace"
-  value       = azurerm_log_analytics_workspace.sandbox.name
-}
-
-output "testing_commands" {
-  description = "Commands to test the sandbox deployment"
-  value = {
-    test_secret_retrieval = "az keyvault secret show --vault-name ${azurerm_key_vault.sandbox.name} --name sandbox-test-secret"             # pragma: allowlist secret
-    set_new_secret        = "az keyvault secret set --vault-name ${azurerm_key_vault.sandbox.name} --name test-secret --value 'test-value'" # pragma: allowlist secret
-    list_secrets          = "az keyvault secret list --vault-name ${azurerm_key_vault.sandbox.name}"
-    check_vnet            = "az network vnet show --resource-group ${azurerm_resource_group.sandbox.name} --name ${azurerm_virtual_network.sandbox.name}"
-    cleanup_resources     = "az group delete --name ${azurerm_resource_group.sandbox.name} --yes --no-wait"
-  }
-}
+# Outputs are defined in outputs.tf

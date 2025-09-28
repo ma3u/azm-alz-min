@@ -24,16 +24,16 @@ The workflow automatically triggers on:
 push:
   branches: [main, develop]
   paths:
-    - "infra/terraform/**/*.tf"
-    - "infra/terraform/**/*.tfvars"
-    - "infra/terraform/**/*.tfvars.json"
+    - 'infra/terraform/**/*.tf'
+    - 'infra/terraform/**/*.tfvars'
+    - 'infra/terraform/**/*.tfvars.json'
 
 # Pull requests to main/develop with Terraform changes
 pull_request:
   branches: [main, develop]
   paths:
-    - "infra/terraform/**/*.tf"
-    - "infra/terraform/**/*.tfvars"
+    - 'infra/terraform/**/*.tf'
+    - 'infra/terraform/**/*.tfvars'
 ```
 
 ### Manual Triggers

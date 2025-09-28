@@ -203,14 +203,16 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
 // SANDBOX TESTING RESOURCES
 // =======================
 
-// Deploy a sample secret for testing
-resource testSecret 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (keyVaultEnabled) {
-  name: '${keyVault.outputs.name}/sandbox-test-secret'
-  properties: {
+// Deploy a sample secret for testing using AVM resource module
+module testSecret 'br/public:avm/res/key-vault/vault/secret:0.1.0' = if (keyVaultEnabled) {
+  name: 'testSecretDeployment'
+  scope: resourceGroup
+  params: {
+    keyVaultName: keyVault.outputs.name
+    name: 'sandbox-test-secret'
     value: 'This is a test secret for AVM validation'
-    attributes: {
-      enabled: true
-    }
+    attributesEnabled: true
+    tags: commonTags
   }
   dependsOn: [
     keyVault
@@ -250,6 +252,7 @@ output testingInstructions object = {
     testSecretCommand: 'az keyvault secret show --vault-name ${keyVault.outputs.name} --name sandbox-test-secret' // pragma: allowlist secret
     setSecretCommand: 'az keyvault secret set --vault-name ${keyVault.outputs.name} --name test-secret --value "test-value"' // pragma: allowlist secret
     listSecretsCommand: 'az keyvault secret list --vault-name ${keyVault.outputs.name}'
+    testSecretResourceId: testSecret.outputs.resourceId
   } : {}
   networkTesting: virtualNetworkEnabled ? {
     checkVnetCommand: 'az network vnet show --resource-group ${resourceGroup.name} --name ${virtualNetworkName}'

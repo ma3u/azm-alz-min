@@ -75,7 +75,7 @@ var spokeSubscriptionName = '${organizationPrefix}-spoke-${environment}'
 // =======================
 
 // Hub subscription using AVM subscription management pattern
-module hubSubscription 'br/public:avm/ptn/lz/sub-vending:0.7.1' = {
+module hubSubscription 'br/public:avm/ptn/lz/sub-vending:0.4.0' = {
   name: 'hubSubscriptionDeployment'
   params: {
     subscriptionAliasName: '${hubSubscriptionName}-sub'
@@ -220,7 +220,7 @@ module hubNetworking 'br/public:avm/ptn/network/hub-networking:0.1.0' = {
 // =======================
 
 // Spoke subscription for application workloads
-module spokeSubscription 'br/public:avm/ptn/lz/sub-vending:0.7.1' = {
+module spokeSubscription 'br/public:avm/ptn/lz/sub-vending:0.4.0' = {
   name: 'spokeSubscriptionDeployment'
   params: {
     subscriptionAliasName: '${spokeSubscriptionName}-sub'
@@ -644,7 +644,7 @@ output connectionInfo object = {
 output avmAcceleratorInfo object = {
   description: 'This deployment uses official AVM accelerator patterns'
   patternsUsed: [
-    'avm/ptn/lz/sub-vending:0.7.1'
+    'avm/ptn/lz/sub-vending:0.4.0'
     'avm/ptn/network/hub-networking:0.1.0'
     'avm/ptn/app/dapr-containerapp:0.1.0'
     'avm/ptn/web/static-site:0.1.0'

@@ -102,8 +102,11 @@ module hubVnet 'br/public:avm/res/network/virtual-network:0.1.6' = {
     addressPrefixes: [hubVnetAddressPrefix]
     subnets: subnets
 
-    // ALZ standard - DDoS protection plan (optional)
-    // ddosProtectionPlanResourceId: '/subscriptions/${subscription().subscriptionId}/resourceGroups/rg-${organizationPrefix}-management-${environment}/providers/Microsoft.Network/ddosProtectionPlans/ddos-plan-${organizationPrefix}-${environment}'
+    // ALZ standard - enable DDoS protection in production
+    enableDdosProtection: environment == 'prod'
+
+    // ALZ security - enable VM protection
+    enableVmProtection: false
 
     // Enable diagnostics for ALZ monitoring
     diagnosticSettings: [
@@ -141,7 +144,11 @@ module firewallPolicy 'br/public:avm/res/network/firewall-policy:0.1.3' = if (en
     tags: commonTags
 
     // ALZ firewall policy configuration
-    tier: firewallSkuTier
+    threatIntelMode: 'Alert'
+    threatIntelAllowlist: {
+      fqdns: []
+      ipAddresses: []
+    }
 
     // ALZ rule collection groups
     ruleCollectionGroups: [
@@ -215,7 +222,7 @@ module firewallPublicIp 'br/public:avm/res/network/public-ip-address:0.2.3' = if
     publicIPAllocationMethod: 'Static'
     skuName: 'Standard'
     skuTier: 'Regional'
-    zones: [1, 2, 3]
+    availabilityZones: ['1', '2', '3']
   }
 }
 
@@ -227,13 +234,27 @@ module azureFirewall 'br/public:avm/res/network/azure-firewall:0.8.0' = if (enab
     location: location
     tags: commonTags
 
+    azureSkuName: 'AZFW_VNet'
     azureSkuTier: firewallSkuTier
 
     // Link to firewall policy
     firewallPolicyId: enableFirewall ? firewallPolicy.outputs.resourceId : ''
 
-    // Hub VNet association - using subnet ID directly
-    publicIPResourceID: enableFirewall ? firewallPublicIp.outputs.resourceId : ''
+    // Hub VNet association
+    virtualNetworkResourceId: hubVnet.outputs.resourceId
+
+    // Public IP configuration
+    publicIPAddressObject: {
+      publicIPAddresses: [
+        {
+          name: 'pip-${naming.prefix}-firewall'
+          publicIPAddressResourceId: enableFirewall ? firewallPublicIp.outputs.resourceId : ''
+        }
+      ]
+    }
+
+    // ALZ standard - availability zones
+    availabilityZones: ['1', '2', '3']
 
     // Enable diagnostics
     diagnosticSettings: [

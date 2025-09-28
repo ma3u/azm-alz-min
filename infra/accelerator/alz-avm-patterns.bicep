@@ -329,7 +329,7 @@ module containerAppsEnvironment 'br/public:avm/res/app/managed-environment:0.7.0
 }
 
 // PostgreSQL Flexible Server using AVM resource modules
-module postgreSQLServer 'br/public:avm/res/db-for-postgresql/flexible-server:0.4.0' = if (applicationWorkloads.enablePostgreSQL) {
+module postgreSQLServer 'br/public:avm/res/db-for-postgre-sql/flexible-server:0.13.1' = if (applicationWorkloads.enablePostgreSQL) {
   name: 'postgreSQLServerDeployment'
   scope: resourceGroup(spokeLandingZone.outputs.subscriptionId, 'rg-${organizationPrefix}-spoke-${environment}')
   params: {
@@ -576,7 +576,7 @@ output avmPatternsUsed object = {
     'avm/res/web/serverfarm:0.2.0 - App Service Plan'
     'avm/res/web/site:0.8.0 - Web App with VNet integration'
     'avm/res/app/managed-environment:0.7.0 - Container Apps Environment'
-    'avm/res/db-for-postgresql/flexible-server:0.4.0 - PostgreSQL with private networking'
+    'avm/res/db-for-postgre-sql/flexible-server:0.13.1 - PostgreSQL with private networking'
     'avm/res/storage/storage-account:0.14.0 - Storage with private endpoints'
     'avm/res/network/application-gateway:0.4.0 - Application Gateway with WAF'
     'avm/res/network/public-ip-address:0.5.0 - Public IP addresses'

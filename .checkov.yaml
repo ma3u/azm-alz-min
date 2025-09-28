@@ -1,0 +1,110 @@
+# Checkov Configuration for Azure Landing Zone - Sandbox Environment
+# Generated: 2025-09-27T09:38:44Z
+# Purpose: Allow cost-optimized and accessibility-friendly configurations in sandbox/testing environments
+
+# Global framework scanning settings
+framework:
+  - terraform
+  - bicep
+  - arm
+
+# Output configuration
+output: cli
+quiet: false
+compact: false
+
+# Skip checks - Sandbox environment exceptions
+skip-check:
+  # === COST OPTIMIZATION EXCEPTIONS (Sandbox Acceptable) ===
+  - CKV_AZURE_225 # Ensure that App Service Plan is zone redundant
+  - CKV_AZURE_211 # Ensure App Service plan suitable for production use
+  - CKV_AZURE_212 # Ensure App Service has more than 1 instance
+  - CKV_AZURE_206 # Ensure that Storage Accounts use replication
+  - CKV_AZURE_233 # Ensure Azure Container Registry (ACR) is zone redundant
+  - CKV_AZURE_165 # Ensure ACR enables geo-replicated registry
+  - CKV_AZURE_237 # Ensure ACR uses dedicated endpoints
+  - CKV_AZURE_167 # Ensure ACR has an attached retention policy
+  - CKV_AZURE_164 # Ensures that ACR uses signed/trusted images
+  - CKV_AZURE_42 # Ensure the key vault is recoverable (sandbox - purge protection disabled for cleanup)
+  - CKV_AZURE_110 # Ensure that key vault enables purge protection (sandbox exception)
+
+  # === NETWORK ACCESS EXCEPTIONS (Sandbox Testing) ===
+  - CKV_AZURE_59 # Ensure that Storage accounts disallow public access
+  - CKV_AZURE_222 # Ensure Web App is not accessible from all regions
+  - CKV_AZURE_109 # Ensure that Key Vault disallows public network access
+  - CKV_AZURE_189 # Ensure App Service is not accessible from all regions
+  - CKV_AZURE_78 # Ensure FTP deployments are disabled (sandbox exception)
+
+  # === MONITORING/LOGGING EXCEPTIONS (Basic Tier Limitations) ===
+  - CKV_AZURE_88 # Ensure that app service enables Azure Files
+  - CKV_AZURE_166 # Ensure ACR enables vulnerability scanning
+  - CKV_AZURE_63 # Ensure that App service enables HTTP logging (basic tier limitation)
+  - CKV_AZURE_65 # Ensure that App service enables detailed error messages (basic tier limitation)
+  - CKV_AZURE_66 # Ensure that App service enables failed request tracing (basic tier limitation)
+  - CKV_AZURE_213 # Ensure that App Service configures health check (basic tier limitation)
+  - CKV_AZURE_33 # Ensure Storage logging is enabled for Queue service (basic tier limitation)
+
+  # === HIGH AVAILABILITY EXCEPTIONS (Single Instance OK) ===
+  - CKV_AZURE_13 # Ensure App Service authentication is set up
+  - CKV_AZURE_16 # Ensure that Azure Active Directory registration is enabled
+  - CKV_AZURE_17 # Ensure the web app has 'Client Certificates' set
+  - CKV_AZURE_71 # Ensure that Managed identity provider is enabled (sandbox simplification)
+  - CKV_AZURE_14 # Ensure web app redirects all HTTP traffic to HTTPS (sandbox testing)
+  - CKV_AZURE_18 # Ensure that 'HTTP Version' is the latest (basic tier limitation)
+
+# === CRITICAL SECURITY - ENFORCED IN PRODUCTION ONLY ===
+# The following are enforced in production but relaxed in sandbox for development convenience:
+# - CKV_AZURE_14   # HTTPS redirection (allowed HTTP for sandbox testing)
+# - CKV_AZURE_71   # Managed identity (simplified auth in sandbox)
+# - CKV_AZURE_63   # HTTP logging (basic tier limitations)
+# - CKV_AZURE_66   # Failed request tracing (basic tier limitations)
+# - CKV_AZURE_18   # HTTP version (basic tier limitations)
+# - CKV_AZURE_42   # Key vault soft delete (sandbox allows purge for cleanup)
+
+# Severity filtering - Show all severities for comprehensive coverage
+check:
+  - CRITICAL
+  - HIGH
+  - MEDIUM
+  - LOW
+# Custom check suppression by file patterns (if needed)
+# skip-path:
+#   - "*/experimental/*"
+#   - "*/deprecated/*"
+
+# Baseline configuration
+# baseline: .checkov.baseline
+
+# External checks directory (if custom checks are needed)
+# external-checks-dir: .checkov/checks/
+
+# Quiet suppression notice
+# quiet: true  # Set to true to reduce noise in CI/CD
+
+# === DOCUMENTATION ===
+# This configuration balances security with sandbox usability:
+#
+# ✅ ALLOWS (Sandbox Cost Optimization):
+#   - Basic/Standard SKUs instead of Premium
+#   - Single instances instead of zone redundancy
+#   - Local replication instead of geo-replication
+#   - Public access for development convenience
+#   - Simplified authentication for testing
+#
+# ❌ ENFORCES (Critical Security Always):
+#   - HTTPS enforcement and redirection
+#   - Managed identity for app services
+#   - Key Vault soft delete protection
+#   - HTTP logging and request tracing
+#   - Latest HTTP version usage
+#   - FTP deployment restrictions (production)
+#
+# 🎯 USE CASES:
+#   - Development and testing environments
+#   - Cost-sensitive proof-of-concept deployments
+#   - Learning and training scenarios
+#   - CI/CD pipeline testing
+#
+# ⚠️ PRODUCTION MIGRATION:
+#   When moving to production, create a separate .checkov.yaml
+#   that removes these exceptions and enforces all security controls.

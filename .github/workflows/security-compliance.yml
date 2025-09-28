@@ -21,338 +21,316 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: 📥 Checkout Repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-    - name: 🔐 Secret Detection with GitLeaks
-      uses: gitleaks/gitleaks-action@v2
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+      - name: 🔐 Secret Detection with GitLeaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
-    - name: 🛡️ Dependency Security Scan
-      uses: securecodewarrior/github-action-add-sarif@v1
-      with:
-        sarif-file: 'security-results.sarif'
-      continue-on-error: true
+      - name: 🛡️ Dependency Security Scan
+        uses: securecodewarrior/github-action-add-sarif@v1
+        with:
+          sarif-file: 'security-results.sarif'
+        continue-on-error: true
 
-    - name: 🔍 Infrastructure Security Analysis
-      run: |
-        echo "🔍 Running comprehensive infrastructure security analysis..."
+      - name: 🔍 Infrastructure Security Analysis
+        run: |
+          echo "🔍 Running comprehensive infrastructure security analysis..."
 
-        # Create security report directory
-        mkdir -p security-reports
+          # Create security report directory
+          mkdir -p security-reports
 
-        # Scan Bicep files for security issues
-        find . -name "*.bicep" -type f | while read -r file; do
-          echo "🔐 Analyzing: $file"
+          # Scan Bicep files for security issues
+          find . -name "*.bicep" -type f | while read -r file; do
+            echo "🔐 Analyzing: $file"
 
-          # Check for common security misconfigurations
-          security_issues=()
+            # Check for common security misconfigurations
+            security_issues=()
 
-          # 1. Public network access
-          if grep -i "publicNetworkAccess.*Enabled" "$file"; then
-            security_issues+=("Public network access enabled")
-          fi
+            # 1. Public network access
+            if grep -i "publicNetworkAccess.*Enabled" "$file"; then
+              security_issues+=("Public network access enabled")
+            fi
 
-          # 2. Admin users enabled
-          if grep -i "adminUserEnabled.*true" "$file"; then
-            security_issues+=("Admin user enabled - use managed identity instead")
-          fi
+            # 2. Admin users enabled
+            if grep -i "adminUserEnabled.*true" "$file"; then
+              security_issues+=("Admin user enabled - use managed identity instead")
+            fi
 
-          # 3. HTTPS enforcement
-          if grep -i "httpsOnly.*false" "$file"; then
-            security_issues+=("HTTPS enforcement disabled")
-          fi
+            # 3. HTTPS enforcement
+            if grep -i "httpsOnly.*false" "$file"; then
+              security_issues+=("HTTPS enforcement disabled")
+            fi
 
-          # 4. Default action allow
-          if grep -i "defaultAction.*Allow" "$file"; then
-            security_issues+=("Default network action set to Allow")
-          fi
+            # 4. Default action allow
+            if grep -i "defaultAction.*Allow" "$file"; then
+              security_issues+=("Default network action set to Allow")
+            fi
 
-          # 5. Weak TLS versions
-          if grep -i "minTlsVersion.*[\"']1\.[01][\"']" "$file"; then
-            security_issues+=("Weak TLS version configured")
-          fi
+            # 5. Weak TLS versions
+            if grep -i "minTlsVersion.*[\"']1\.[01][\"']" "$file"; then
+              security_issues+=("Weak TLS version configured")
+            fi
 
-          # 6. Public blob access
-          if grep -i "allowBlobPublicAccess.*true" "$file"; then
-            security_issues+=("Public blob access enabled")
-          fi
+            # 6. Public blob access
+            if grep -i "allowBlobPublicAccess.*true" "$file"; then
+              security_issues+=("Public blob access enabled")
+            fi
 
-          # 7. Cross-tenant replication
-          if grep -i "allowCrossTenantReplication.*true" "$file"; then
-            security_issues+=("Cross-tenant replication enabled")
-          fi
+            # 7. Cross-tenant replication
+            if grep -i "allowCrossTenantReplication.*true" "$file"; then
+              security_issues+=("Cross-tenant replication enabled")
+            fi
 
-          # 8. Soft delete disabled
-          if grep -i "enableSoftDelete.*false" "$file"; then
-            security_issues+=("Soft delete disabled")
-          fi
+            # 8. Soft delete disabled
+            if grep -i "enableSoftDelete.*false" "$file"; then
+              security_issues+=("Soft delete disabled")
+            fi
 
-          # 9. Missing encryption
-          if ! grep -i "encryption" "$file" && (grep -i "storage\|database" "$file"); then
-            security_issues+=("Potential missing encryption configuration")
-          fi
+            # 9. Missing encryption
+            if ! grep -i "encryption" "$file" && (grep -i "storage\|database" "$file"); then
+              security_issues+=("Potential missing encryption configuration")
+            fi
 
-          # Generate report
-          if [[ ${#security_issues[@]} -gt 0 ]]; then
-            echo "❌ Security issues found in $file:"
-            printf '%s\n' "${security_issues[@]}" | sed 's/^/  - /'
-            echo "$file: ${security_issues[*]}" >> security-reports/bicep-security.txt
-          else
-            echo "✅ $file passed security analysis"
-          fi
-        done
-
-        # Scan Terraform files
-        find . -name "*.tf" -type f | while read -r file; do
-          echo "🔐 Analyzing Terraform: $file"
-
-          # Check for similar security issues in Terraform syntax
-          tf_issues=()
-
-          if grep -i "public_network_access_enabled.*true" "$file"; then
-            tf_issues+=("Public network access enabled")
-          fi
-
-          if grep -i "https_only.*false" "$file"; then
-            tf_issues+=("HTTPS enforcement disabled")
-          fi
-
-          if grep -i "min_tls_version.*\"1\.[01]\"" "$file"; then
-            tf_issues+=("Weak TLS version configured")
-          fi
-
-          if [[ ${#tf_issues[@]} -gt 0 ]]; then
-            echo "❌ Security issues found in $file:"
-            printf '%s\n' "${tf_issues[@]}" | sed 's/^/  - /'
-          else
-            echo "✅ $file passed security analysis"
-          fi
-        done
-
-    - name: 📊 Compliance Check
-      run: |
-        echo "📊 Running compliance checks..."
-
-        # Check for required tags
-        echo "🏷️ Checking resource tagging compliance..."
-
-        required_tags=("Environment" "CostCenter" "Owner" "Purpose")
-
-        find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
-          echo "📋 Checking tags in: $file"
-
-          missing_tags=()
-          for tag in "${required_tags[@]}"; do
-            if ! grep -i "$tag" "$file" > /dev/null; then
-              missing_tags+=("$tag")
+            # Generate report
+            if [[ ${#security_issues[@]} -gt 0 ]]; then
+              echo "❌ Security issues found in $file:"
+              printf '%s\n' "${security_issues[@]}" | sed 's/^/  - /'
+              echo "$file: ${security_issues[*]}" >> security-reports/bicep-security.txt
+            else
+              echo "✅ $file passed security analysis"
             fi
           done
 
-          if [[ ${#missing_tags[@]} -gt 0 ]]; then
-            echo "⚠️ Missing required tags in $file:"
-            printf '%s\n' "${missing_tags[@]}" | sed 's/^/  - /'
-          else
-            echo "✅ $file has all required tags"
-          fi
-        done
+          # Scan Terraform files
+          find . -name "*.tf" -type f | while read -r file; do
+            echo "🔐 Analyzing Terraform: $file"
 
-        # Check naming conventions
-        echo "📝 Checking Azure naming conventions..."
+            # Check for similar security issues in Terraform syntax
+            tf_issues=()
 
-        find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
-          echo "📋 Checking naming in: $file"
-
-          # Key Vault naming (kv-*)
-          if grep -E "(keyVault|key.?vault)" "$file" > /dev/null; then
-            if ! grep -E "kv-[a-z0-9-]+" "$file" > /dev/null; then
-              echo "⚠️ Key Vault should follow 'kv-*' naming pattern in $file"
+            if grep -i "public_network_access_enabled.*true" "$file"; then
+              tf_issues+=("Public network access enabled")
             fi
-          fi
 
-          # Storage Account naming (lowercase, no hyphens)
-          if grep -E "(storageAccount|storage.?account)" "$file" > /dev/null; then
-            if grep -E "[A-Z]" "$file" | grep -i storage > /dev/null; then
-              echo "⚠️ Storage Account names must be lowercase in $file"
+            if grep -i "https_only.*false" "$file"; then
+              tf_issues+=("HTTPS enforcement disabled")
             fi
-          fi
 
-          # Container Registry naming (acr*)
-          if grep -E "container.?registry" "$file" > /dev/null; then
-            if ! grep -E "acr[a-z0-9]+" "$file" > /dev/null; then
-              echo "⚠️ Container Registry should follow 'acr*' naming pattern in $file"
+            if grep -i "min_tls_version.*\"1\.[01]\"" "$file"; then
+              tf_issues+=("Weak TLS version configured")
             fi
-          fi
-        done
 
-    - name: 🔒 AVM Security Validation
-      run: |
-        echo "🔒 Validating AVM module security configurations..."
+            if [[ ${#tf_issues[@]} -gt 0 ]]; then
+              echo "❌ Security issues found in $file:"
+              printf '%s\n' "${tf_issues[@]}" | sed 's/^/  - /'
+            else
+              echo "✅ $file passed security analysis"
+            fi
+          done
 
-        find . -name "*.bicep" | while read -r file; do
-          echo "📦 Checking AVM security in: $file"
+      - name: 📊 Compliance Check
+        run: |
+          echo "📊 Running compliance checks..."
 
-          # Extract AVM modules
-          avm_modules=$(grep -oE "br/public:avm/[^'\"]*" "$file" || true)
+          # Check for required tags
+          echo "🏷️ Checking resource tagging compliance..."
 
-          if [[ -n "$avm_modules" ]]; then
-            echo "📦 Found AVM modules:"
-            echo "$avm_modules"
+          required_tags=("Environment" "CostCenter" "Owner" "Purpose")
 
-            # Check for security-focused parameters
-            while IFS= read -r module; do
-              if [[ -n "$module" ]]; then
-                echo "🔍 Analyzing security parameters for: $module"
+          find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
+            echo "📋 Checking tags in: $file"
 
-                # Check for common security parameters based on module type
-                if [[ "$module" == *"storage"* ]]; then
-                  if ! grep -A 20 -B 5 "$module" "$file" | grep -i "allowBlobPublicAccess.*false"; then
-                    echo "⚠️ Storage module should disable public blob access"
-                  fi
-
-                  if ! grep -A 20 -B 5 "$module" "$file" | grep -i "minimumTlsVersion.*TLS1_2"; then
-                    echo "⚠️ Storage module should enforce TLS 1.2"
-                  fi
-                fi
-
-                if [[ "$module" == *"key-vault"* ]]; then
-                  if ! grep -A 20 -B 5 "$module" "$file" | grep -i "enableSoftDelete.*true"; then
-                    echo "⚠️ Key Vault should enable soft delete"
-                  fi
-
-                  if ! grep -A 20 -B 5 "$module" "$file" | grep -i "enableRbacAuthorization.*true"; then
-                    echo "⚠️ Key Vault should use RBAC authorization"
-                  fi
-                fi
-
-                if [[ "$module" == *"container-registry"* ]]; then
-                  if ! grep -A 20 -B 5 "$module" "$file" | grep -i "acrAdminUserEnabled.*false"; then
-                    echo "⚠️ Container Registry should disable admin user"
-                  fi
-
-                  if ! grep -A 20 -B 5 "$module" "$file" | grep -i "acrSku.*Premium"; then
-                    echo "ℹ️ Consider Premium SKU for Container Registry security features"
-                  fi
-                fi
+            missing_tags=()
+            for tag in "${required_tags[@]}"; do
+              if ! grep -i "$tag" "$file" > /dev/null; then
+                missing_tags+=("$tag")
               fi
-            done <<< "$avm_modules"
-          fi
-        done
+            done
 
-    - name: 💰 Cost Security Analysis
-      run: |
-        echo "💰 Analyzing cost-related security implications..."
+            if [[ ${#missing_tags[@]} -gt 0 ]]; then
+              echo "⚠️ Missing required tags in $file:"
+              printf '%s\n' "${missing_tags[@]}" | sed 's/^/  - /'
+            else
+              echo "✅ $file has all required tags"
+            fi
+          done
 
-        find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
-          echo "💸 Checking cost implications in: $file"
+          # Check naming conventions
+          echo "📝 Checking Azure naming conventions..."
 
-          # Check for expensive configurations that might indicate security issues
-          cost_warnings=()
+          find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
+            echo "📋 Checking naming in: $file"
 
-          # Premium SKUs (might be necessary for security)
-          if grep -i "premium" "$file"; then
-            cost_warnings+=("Premium SKU detected - verify security justification")
-          fi
+            # Key Vault naming (kv-*)
+            if grep -E "(keyVault|key.?vault)" "$file" > /dev/null; then
+              if ! grep -E "kv-[a-z0-9-]+" "$file" > /dev/null; then
+                echo "⚠️ Key Vault should follow 'kv-*' naming pattern in $file"
+              fi
+            fi
 
-          # Large VM sizes
-          if grep -E "(Standard_D[4-9]|Standard_E[4-9]|Standard_F[4-9])" "$file"; then
-            cost_warnings+=("Large VM size detected - ensure proper access controls")
-          fi
+            # Storage Account naming (lowercase, no hyphens)
+            if grep -E "(storageAccount|storage.?account)" "$file" > /dev/null; then
+              if grep -E "[A-Z]" "$file" | grep -i storage > /dev/null; then
+                echo "⚠️ Storage Account names must be lowercase in $file"
+              fi
+            fi
 
-          # Multiple regions (geo-replication costs)
-          region_count=$(grep -c -i "location.*=" "$file" 2>/dev/null || echo "0")
-          if [[ $region_count -gt 2 ]]; then
-            cost_warnings+=("Multiple regions detected - review data residency requirements")
-          fi
+            # Container Registry naming (acr*)
+            if grep -E "container.?registry" "$file" > /dev/null; then
+              if ! grep -E "acr[a-z0-9]+" "$file" > /dev/null; then
+                echo "⚠️ Container Registry should follow 'acr*' naming pattern in $file"
+              fi
+            fi
+          done
 
-          # Public IP addresses
-          if grep -i "public.*ip" "$file"; then
-            cost_warnings+=("Public IP detected - consider security implications")
-          fi
+      - name: 🔒 AVM Security Validation
+        run: |
+          echo "🔒 Validating AVM module security configurations..."
 
-          if [[ ${#cost_warnings[@]} -gt 0 ]]; then
-            echo "💰 Cost-security considerations in $file:"
-            printf '%s\n' "${cost_warnings[@]}" | sed 's/^/  - /'
-          fi
-        done
+          find . -name "*.bicep" | while read -r file; do
+            echo "📦 Checking AVM security in: $file"
 
-    - name: 📊 Generate Security Report
-      run: |
-        echo "📊 Generating comprehensive security report..."
+            # Extract AVM modules
+            avm_modules=$(grep -oE "br/public:avm/[^'\"]*" "$file" || true)
 
-        # Create markdown report
-        cat > security-report.md << 'EOF'
-# Infrastructure Security Report
+            if [[ -n "$avm_modules" ]]; then
+              echo "📦 Found AVM modules:"
+              echo "$avm_modules"
 
-Generated:
-Repository: Azure Landing Zone
-Branch: main
-Commit: latest
+              # Check for security-focused parameters
+              while IFS= read -r module; do
+                if [[ -n "$module" ]]; then
+                  echo "🔍 Analyzing security parameters for: $module"
 
-## 📋 Summary
+                  # Check for common security parameters based on module type
+                  if [[ "$module" == *"storage"* ]]; then
+                    if ! grep -A 20 -B 5 "$module" "$file" | grep -i "allowBlobPublicAccess.*false"; then
+                      echo "⚠️ Storage module should disable public blob access"
+                    fi
 
-This report contains the results of automated security scanning for infrastructure templates.
+                    if ! grep -A 20 -B 5 "$module" "$file" | grep -i "minimumTlsVersion.*TLS1_2"; then
+                      echo "⚠️ Storage module should enforce TLS 1.2"
+                    fi
+                  fi
 
-## 🔍 Security Checks Performed
+                  if [[ "$module" == *"key-vault"* ]]; then
+                    if ! grep -A 20 -B 5 "$module" "$file" | grep -i "enableSoftDelete.*true"; then
+                      echo "⚠️ Key Vault should enable soft delete"
+                    fi
 
-- ✅ Secret detection with GitLeaks
-- ✅ Infrastructure security analysis
-- ✅ Compliance and tagging validation
-- ✅ AVM module security validation
-- ✅ Cost-security implications analysis
+                    if ! grep -A 20 -B 5 "$module" "$file" | grep -i "enableRbacAuthorization.*true"; then
+                      echo "⚠️ Key Vault should use RBAC authorization"
+                    fi
+                  fi
 
-## 📊 Files Scanned
+                  if [[ "$module" == *"container-registry"* ]]; then
+                    if ! grep -A 20 -B 5 "$module" "$file" | grep -i "acrAdminUserEnabled.*false"; then
+                      echo "⚠️ Container Registry should disable admin user"
+                    fi
 
-EOF
+                    if ! grep -A 20 -B 5 "$module" "$file" | grep -i "acrSku.*Premium"; then
+                      echo "ℹ️ Consider Premium SKU for Container Registry security features"
+                    fi
+                  fi
+                fi
+              done <<< "$avm_modules"
+            fi
+          done
 
-        echo "### Bicep Files" >> security-report.md
-        find . -name "*.bicep" -type f | sed 's|^\./||' | sort >> security-report.md
+      - name: 💰 Cost Security Analysis
+        run: |
+          echo "💰 Analyzing cost-related security implications..."
 
-        echo "" >> security-report.md
-        echo "### Terraform Files" >> security-report.md
-        find . -name "*.tf" -type f | sed 's|^\./||' | sort >> security-report.md
+          find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
+            echo "💸 Checking cost implications in: $file"
 
-        echo "" >> security-report.md
-        echo "## 🔗 Resources" >> security-report.md
-        echo "" >> security-report.md
-        echo "- [Azure Security Benchmark](https://docs.microsoft.com/en-us/security/benchmark/azure/)" >> security-report.md
-        echo "- [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/)" >> security-report.md
-        echo "- [Infrastructure Security Best Practices](https://docs.microsoft.com/en-us/azure/security/fundamentals/iaas)" >> security-report.md
+            # Check for expensive configurations that might indicate security issues
+            cost_warnings=()
 
-        # Display report
-        cat security-report.md >> $GITHUB_STEP_SUMMARY
+            # Premium SKUs (might be necessary for security)
+            if grep -i "premium" "$file"; then
+              cost_warnings+=("Premium SKU detected - verify security justification")
+            fi
 
-    - name: 📤 Upload Security Report
-      uses: actions/upload-artifact@v3
-      if: always()
-      with:
-        name: security-report-${{ github.run_number }}
-        path: |
-          security-report.md
-          security-reports/
-        retention-days: 30
+            # Large VM sizes
+            if grep -E "(Standard_D[4-9]|Standard_E[4-9]|Standard_F[4-9])" "$file"; then
+              cost_warnings+=("Large VM size detected - ensure proper access controls")
+            fi
 
-    - name: 🚨 Security Summary
-      if: always()
-      run: |
-        echo "## 🛡️ Security Scanning Complete" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📊 Scan Results" >> $GITHUB_STEP_SUMMARY
-        echo "- Secret detection completed" >> $GITHUB_STEP_SUMMARY
-        echo "- Infrastructure security analyzed" >> $GITHUB_STEP_SUMMARY
-        echo "- Compliance checks performed" >> $GITHUB_STEP_SUMMARY
-        echo "- AVM security validation completed" >> $GITHUB_STEP_SUMMARY
-        echo "- Cost-security implications reviewed" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
-        echo "1. Review security report artifact" >> $GITHUB_STEP_SUMMARY
-        echo "2. Address any identified security issues" >> $GITHUB_STEP_SUMMARY
-        echo "3. Update templates with security improvements" >> $GITHUB_STEP_SUMMARY
-        echo "4. Consider security training for development team" >> $GITHUB_STEP_SUMMARY
+            # Multiple regions (geo-replication costs)
+            region_count=$(grep -c -i "location.*=" "$file" 2>/dev/null || echo "0")
+            if [[ $region_count -gt 2 ]]; then
+              cost_warnings+=("Multiple regions detected - review data residency requirements")
+            fi
+
+            # Public IP addresses
+            if grep -i "public.*ip" "$file"; then
+              cost_warnings+=("Public IP detected - consider security implications")
+            fi
+
+            if [[ ${#cost_warnings[@]} -gt 0 ]]; then
+              echo "💰 Cost-security considerations in $file:"
+              printf '%s\n' "${cost_warnings[@]}" | sed 's/^/  - /'
+            fi
+          done
+
+      - name: 📊 Generate Security Report
+        run: |
+          echo "📊 Generating comprehensive security report..."
+          echo "# Infrastructure Security Report" > security-report.md
+          echo "" >> security-report.md
+          echo "This report contains the results of automated security scanning." >> security-report.md
+
+          echo "### Bicep Files" >> security-report.md
+          find . -name "*.bicep" -type f | sed 's|^\./||' | sort >> security-report.md
+
+          echo "" >> security-report.md
+          echo "### Terraform Files" >> security-report.md
+          find . -name "*.tf" -type f | sed 's|^\./||' | sort >> security-report.md
+
+          echo "" >> security-report.md
+          echo "## 🔗 Resources" >> security-report.md
+          echo "" >> security-report.md
+          echo "- [Azure Security Benchmark](https://docs.microsoft.com/en-us/security/benchmark/azure/)" >> security-report.md
+          echo "- [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/)" >> security-report.md
+          echo "- [Infrastructure Security Best Practices](https://docs.microsoft.com/en-us/azure/security/fundamentals/iaas)" >> security-report.md
+
+          # Display report
+          cat security-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: 📤 Upload Security Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-report-${{ github.run_number }}
+          path: |
+            security-report.md
+            security-reports/
+          retention-days: 30
+
+      - name: 🚨 Security Summary
+        if: always()
+        run: |
+          echo "## 🛡️ Security Scanning Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📊 Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Secret detection completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Infrastructure security analyzed" >> $GITHUB_STEP_SUMMARY
+          echo "- Compliance checks performed" >> $GITHUB_STEP_SUMMARY
+          echo "- AVM security validation completed" >> $GITHUB_STEP_SUMMARY
+          echo "- Cost-security implications reviewed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review security report artifact" >> $GITHUB_STEP_SUMMARY
+          echo "2. Address any identified security issues" >> $GITHUB_STEP_SUMMARY
+          echo "3. Update templates with security improvements" >> $GITHUB_STEP_SUMMARY
+          echo "4. Consider security training for development team" >> $GITHUB_STEP_SUMMARY
 
   compliance-validation:
     name: 📋 Compliance Validation
@@ -360,66 +338,61 @@ EOF
     needs: security-scanning
 
     steps:
-    - name: 📥 Checkout Repository
-      uses: actions/checkout@v4
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: 📋 Policy Compliance Check
-      run: |
-        echo "📋 Checking compliance against common Azure policies..."
+      - name: 📋 Policy Compliance Check
+        run: |
+          echo "📋 Checking compliance against common Azure policies..."
 
-        # Create compliance report
-        cat > compliance-report.md << 'EOF'
-# 📋 Compliance Validation Report
+          # Create compliance report
+          echo "# Compliance Validation Report" > compliance-report.md
+          echo "" >> compliance-report.md
+          echo "This section validates templates against common Azure Policy requirements." >> compliance-report.md
 
-## Azure Policy Compliance
+          # Check common policy compliance
+          policy_violations=0
 
-This section validates templates against common Azure Policy requirements.
-
-EOF
-
-        # Check common policy compliance
-        policy_violations=0
-
-        # 1. Required tags policy
-        echo "🏷️ Checking required tags policy..." >> compliance-report.md
-        find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
-          if ! grep -i "environment\|costcenter\|owner" "$file" > /dev/null; then
-            echo "⚠️ $file: Missing required tags" >> compliance-report.md
-            policy_violations=$((policy_violations + 1))
-          fi
-        done
-
-        # 2. Storage account security
-        echo "🗄️ Checking storage security policy..." >> compliance-report.md
-        find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
-          if grep -i "storage" "$file" > /dev/null; then
-            if grep -i "allowBlobPublicAccess.*true" "$file"; then
-              echo "❌ $file: Storage allows public blob access" >> compliance-report.md
+          # 1. Required tags policy
+          echo "🏷️ Checking required tags policy..." >> compliance-report.md
+          find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
+            if ! grep -i "environment\|costcenter\|owner" "$file" > /dev/null; then
+              echo "⚠️ $file: Missing required tags" >> compliance-report.md
               policy_violations=$((policy_violations + 1))
             fi
+          done
+
+          # 2. Storage account security
+          echo "🗄️ Checking storage security policy..." >> compliance-report.md
+          find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
+            if grep -i "storage" "$file" > /dev/null; then
+              if grep -i "allowBlobPublicAccess.*true" "$file"; then
+                echo "❌ $file: Storage allows public blob access" >> compliance-report.md
+                policy_violations=$((policy_violations + 1))
+              fi
+            fi
+          done
+
+          # 3. Network security
+          echo "🌐 Checking network security policy..." >> compliance-report.md
+          find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
+            if grep -i "defaultAction.*Allow" "$file"; then
+              echo "⚠️ $file: Network default action allows all traffic" >> compliance-report.md
+              policy_violations=$((policy_violations + 1))
+            fi
+          done
+
+          echo "" >> compliance-report.md
+          echo "## Summary" >> compliance-report.md
+          echo "Total policy violations found: $policy_violations" >> compliance-report.md
+
+          # Display compliance report
+          cat compliance-report.md >> $GITHUB_STEP_SUMMARY
+
+      - name: 🏆 Compliance Badge
+        run: |
+          if [[ $policy_violations -eq 0 ]]; then
+            echo "🏆 COMPLIANCE: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "⚠️ COMPLIANCE: ISSUES FOUND" >> $GITHUB_STEP_SUMMARY
           fi
-        done
-
-        # 3. Network security
-        echo "🌐 Checking network security policy..." >> compliance-report.md
-        find . -name "*.bicep" -o -name "*.tf" | while read -r file; do
-          if grep -i "defaultAction.*Allow" "$file"; then
-            echo "⚠️ $file: Network default action allows all traffic" >> compliance-report.md
-            policy_violations=$((policy_violations + 1))
-          fi
-        done
-
-        echo "" >> compliance-report.md
-        echo "## Summary" >> compliance-report.md
-        echo "Total policy violations found: $policy_violations" >> compliance-report.md
-
-        # Display compliance report
-        cat compliance-report.md >> $GITHUB_STEP_SUMMARY
-
-    - name: 🏆 Compliance Badge
-      run: |
-        if [[ $policy_violations -eq 0 ]]; then
-          echo "🏆 COMPLIANCE: PASSED" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "⚠️ COMPLIANCE: ISSUES FOUND" >> $GITHUB_STEP_SUMMARY
-        fi

@@ -1,5 +1,5 @@
 terraform {
-  required_version = ">= 1.9"
+  required_version = ">= 1.5"
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -197,7 +197,7 @@ resource "azurerm_log_analytics_workspace" "main" {
 
 resource "azurerm_container_registry" "main" {
   count               = var.enable_container_registry ? 1 : 0
-  name                = "acr${var.organization_prefix}${var.environment}${local.unique_suffix}"
+  name                = lower("acr${var.organization_prefix}${var.environment}${local.unique_suffix}")
   resource_group_name = azurerm_resource_group.hub.name
   location            = var.location
   sku                 = "Premium"
@@ -301,7 +301,7 @@ resource "azurerm_linux_web_app" "main" {
 
 resource "azurerm_storage_account" "main" {
   count               = var.enable_app_workloads ? 1 : 0
-  name                = "st${var.organization_prefix}${var.environment}${local.unique_suffix}"
+  name                = lower("st${var.organization_prefix}${var.environment}${local.unique_suffix}")
   resource_group_name = azurerm_resource_group.spoke.name
   location            = var.location
 

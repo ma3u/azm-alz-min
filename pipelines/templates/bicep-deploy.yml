@@ -4,49 +4,49 @@
 parameters:
   - name: azureServiceConnection
     type: string
-    displayName: "Azure Service Connection"
+    displayName: 'Azure Service Connection'
 
   - name: subscriptionId
     type: string
-    displayName: "Azure Subscription ID"
+    displayName: 'Azure Subscription ID'
 
   - name: resourceGroupName
     type: string
-    displayName: "Resource Group Name"
+    displayName: 'Resource Group Name'
 
   - name: location
     type: string
-    displayName: "Azure Region"
-    default: "West Europe"
+    displayName: 'Azure Region'
+    default: 'West Europe'
 
   - name: environmentName
     type: string
-    displayName: "Environment Name (dev/prod)"
+    displayName: 'Environment Name (dev/prod)'
     values:
       - dev
       - prod
 
   - name: artifactName
     type: string
-    displayName: "Build Artifact Name"
-    default: "bicep-templates"
+    displayName: 'Build Artifact Name'
+    default: 'bicep-templates'
 
 steps:
   # Download build artifacts
   - task: DownloadBuildArtifacts@1
-    displayName: "Download Build Artifacts"
+    displayName: 'Download Build Artifacts'
     inputs:
-      buildType: "current"
-      artifactName: "${{ parameters.artifactName }}"
-      downloadPath: "$(System.ArtifactsDirectory)"
+      buildType: 'current'
+      artifactName: '${{ parameters.artifactName }}'
+      downloadPath: '$(System.ArtifactsDirectory)'
 
   # Display environment information
   - task: AzureCLI@2
-    displayName: "Display Deployment Information"
+    displayName: 'Display Deployment Information'
     inputs:
-      azureSubscription: "${{ parameters.azureServiceConnection }}"
-      scriptType: "bash"
-      scriptLocation: "inlineScript"
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
       inlineScript: |
         echo "=== Deployment Information ==="
         echo "Environment: ${{ parameters.environmentName }}"
@@ -59,11 +59,11 @@ steps:
 
   # Ensure resource group exists
   - task: AzureCLI@2
-    displayName: "Ensure Resource Group Exists"
+    displayName: 'Ensure Resource Group Exists'
     inputs:
-      azureSubscription: "${{ parameters.azureServiceConnection }}"
-      scriptType: "bash"
-      scriptLocation: "inlineScript"
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
       inlineScript: |
         echo "Checking if resource group '${{ parameters.resourceGroupName }}' exists..."
         if ! az group show --name "${{ parameters.resourceGroupName }}" --subscription "${{ parameters.subscriptionId }}" >/dev/null 2>&1; then
@@ -84,11 +84,11 @@ steps:
 
   # Run What-If analysis
   - task: AzureCLI@2
-    displayName: "Run What-If Analysis"
+    displayName: 'Run What-If Analysis'
     inputs:
-      azureSubscription: "${{ parameters.azureServiceConnection }}"
-      scriptType: "bash"
-      scriptLocation: "inlineScript"
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
       inlineScript: |
         echo "Running What-If analysis..."
         cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"
@@ -116,11 +116,11 @@ steps:
 
   # Deploy Bicep template
   - task: AzureCLI@2
-    displayName: "Deploy Bicep Template"
+    displayName: 'Deploy Bicep Template'
     inputs:
-      azureSubscription: "${{ parameters.azureServiceConnection }}"
-      scriptType: "bash"
-      scriptLocation: "inlineScript"
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
       inlineScript: |
         echo "Starting deployment..."
         cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"
@@ -154,11 +154,11 @@ steps:
 
   # Post-deployment validation
   - task: AzureCLI@2
-    displayName: "Post-Deployment Validation"
+    displayName: 'Post-Deployment Validation'
     inputs:
-      azureSubscription: "${{ parameters.azureServiceConnection }}"
-      scriptType: "bash"
-      scriptLocation: "inlineScript"
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
       inlineScript: |
         echo "=== Post-Deployment Validation ==="
 
@@ -215,11 +215,11 @@ steps:
 
   # Clean up temporary files
   - task: AzureCLI@2
-    displayName: "Clean Up"
+    displayName: 'Clean Up'
     inputs:
-      azureSubscription: "${{ parameters.azureServiceConnection }}"
-      scriptType: "bash"
-      scriptLocation: "inlineScript"
+      azureSubscription: '${{ parameters.azureServiceConnection }}'
+      scriptType: 'bash'
+      scriptLocation: 'inlineScript'
       inlineScript: |
         echo "Cleaning up temporary files..."
         cd "$(System.ArtifactsDirectory)/${{ parameters.artifactName }}"

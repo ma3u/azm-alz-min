@@ -1,423 +1,212 @@
-# Azure Landing Zone Deployment Guide - AVM Implementation
+# AVM Deployment Guide
 
-## 🎯 Overview
+This guide provides **essential deployment steps** for Azure Landing Zones using Azure Verified Modules. For comprehensive Azure Landing Zone guidance, see [Microsoft's official ALZ documentation](https://docs.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/).
 
-This repository provides two Azure Landing Zone (ALZ) deployment options using Azure Verified Modules (AVM):
+## 🎯 Purpose
 
-1. **✅ Simplified Sandbox Deployment** - Single subscription testing with core AVM resource modules **(SUCCESSFULLY TESTED)**
-2. **🏢 Production Enterprise Deployment** - Full AVM pattern-based deployment with subscription vending
+Deploy production-ready Azure Landing Zones using Microsoft's [Azure Verified Modules (AVM)](https://azure.github.io/Azure-Verified-Modules/) with:
 
-Both approaches use Microsoft-validated AVM modules and include SSH key-based authentication for enhanced security.
+- **Sandbox testing** - Single subscription (~$18/month)
+- **Enterprise production** - Multi-subscription with governance
+- **Security by design** - Zero Trust Level 1 compliance
+- **AI-assisted development** - Warp integration support
 
-## 🔐 Security Prerequisites
+## 📋 Table of Contents
 
-### SSH Key Generation (Required for Both Options)
-
-Before deployment, generate SSH keys for secure authentication:
-
-```bash
-# Generate RSA 4096-bit SSH keys
-mkdir -p .secrets
-ssh-keygen -t rsa -b 4096 -f .secrets/azure-alz-key -N "" -C "azure-alz-sandbox-key"
-
-# Verify keys are created
-ls -la .secrets/
-# Output:
-# -rw-------  1 user  staff  3381 Sep 26 22:05 azure-alz-key      (private key)
-# -rw-r--r--  1 user  staff   743 Sep 26 22:05 azure-alz-key.pub  (public key)
-```
-
-**🔒 Security**: SSH keys are automatically excluded from git via `.gitignore` to prevent accidental commits.
-
-## 🏗️ Deployment Options
+- [⚡ Quick Deployment](#-quick-deployment)
+- [🛠️ Prerequisites](#️-prerequisites)
+- [🧪 Sandbox Option](#-sandbox-option)
+- [🏢 Enterprise Option](#-enterprise-option)
+- [🚫 Troubleshooting](#-troubleshooting)
+- [📚 Official Documentation](#-official-documentation)
+- [📚 Related Documents](#-related-documents)
 
 ---
 
-## Option 1: Simplified Sandbox Deployment ✅ (TESTED & WORKING)
+## ⚡ Quick Deployment
 
-### 📋 Purpose
-
-- **Single subscription** testing and development
-- **Rapid deployment** for proof-of-concept (~3 minutes)
-- **SSH key authentication** configured
-- **Hub-spoke networking** with VNet peering
-- **Basic application workloads** (Web App, Storage)
-- **Cost-effective** for testing (~$18/month)
-
-### Prerequisites
+### Prerequisites Setup
 
 ```bash
-# Ensure you're logged into Azure CLI
+# Generate SSH keys (one-time setup)
+mkdir -p .secrets
+ssh-keygen -t rsa -b 4096 -f .secrets/azure-alz-key -N "" -C "azure-alz-key"
+
+# Login to Azure
 az login
-
-# Set the correct subscription
 az account set --subscription "YOUR_SUBSCRIPTION_ID"
-
-# Verify your subscription
-az account show --query "{subscriptionId:id,name:name,user:user.name}" -o table
 ```
 
-### 🚀 Deployment Command
+### Sandbox Deployment (Recommended Start)
 
 ```bash
-# Deploy the simplified sandbox (TESTED WORKING)
+# Deploy sandbox ALZ (~$18/month)
 az deployment sub create \
   --location "westeurope" \
   --template-file infra/accelerator/simple-sandbox.bicep \
   --parameters infra/accelerator/simple-sandbox.parameters.json \
-  --name "alz-sandbox-$(date +%Y%m%d-%H%M%S)" \
-  --verbose
+  --name "alz-sandbox-$(date +%Y%m%d-%H%M%S)"
 ```
 
-### ✅ What Gets Deployed (Verified)
+**Result:** Hub-spoke ALZ with Web App, Storage, Log Analytics, VNet peering
 
-- ✅ **2 Resource Groups**: `rg-alz-hub-sandbox` and `rg-alz-spoke-sandbox`
-- ✅ **2 Virtual Networks**: Hub (10.0.0.0/16) and Spoke (10.1.0.0/16)
-- ✅ **VNet Peering**: Bidirectional between hub and spoke (verified working)
-- ✅ **Web App + App Service Plan**: Basic tier, accessible at `app-alz-web-sandbox.azurewebsites.net`
-- ✅ **Storage Account**: Standard LRS with security features (`stalzsandboxhqilxdzf`)
-- ✅ **Log Analytics Workspace**: `log-alz-hub-sandbox` for monitoring
-- ✅ **SSH Keys**: Ready for secure VM access (when VMs added)
+---
 
-### 🔍 Post-Deployment Verification (Tested)
+## 🛠️ Prerequisites
+
+**Required Tools:**
+
+- [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli) (v2.50.0+)
+- [Bicep](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/install) or [Terraform 1.9+](https://releases.hashicorp.com/terraform/)
+- Azure subscription with Contributor permissions
+
+**Permissions:**
+
+- **Sandbox:** Subscription Contributor
+- **Enterprise:** Management Group Contributor + Subscription Creator
+
+---
+
+## 🧪 Sandbox Option
+
+**Purpose:** Single subscription testing (~$18/month)
+
+### Deployment
 
 ```bash
-# List resources in hub (verified working)
-az resource list --resource-group rg-alz-hub-sandbox --output table
-# Expected output:
-# Name                  ResourceGroup       Location    Type
-# vnet-alz-hub-sandbox  rg-alz-hub-sandbox  westeurope  Microsoft.Network/virtualNetworks
-# log-alz-hub-sandbox   rg-alz-hub-sandbox  westeurope  Microsoft.OperationalInsights/workspaces
-
-# List resources in spoke (verified working)
-az resource list --resource-group rg-alz-spoke-sandbox --output table
-# Expected output:
-# Name                    ResourceGroup         Location    Type
-# vnet-alz-spoke-sandbox  rg-alz-spoke-sandbox  westeurope  Microsoft.Network/virtualNetworks
-# stalzsandboxhqilxdzf    rg-alz-spoke-sandbox  westeurope  Microsoft.Storage/storageAccounts
-# asp-alz-sandbox         rg-alz-spoke-sandbox  westeurope  Microsoft.Web/serverFarms
-# app-alz-web-sandbox     rg-alz-spoke-sandbox  westeurope  Microsoft.Web/sites
-
-# Test the web app (verified working)
-WEBAPP_URL=$(az deployment sub show --name "$(az deployment sub list --query "[0].name" -o tsv)" --query 'properties.outputs.connectionInfo.value.webApp.hostname' -o tsv)
-echo "Web App URL: https://$WEBAPP_URL"
-curl -s -o /dev/null -w "%{http_code}\n" "https://$WEBAPP_URL"  # Should return 200
+az deployment sub create \
+  --location "westeurope" \
+  --template-file infra/accelerator/simple-sandbox.bicep \
+  --parameters infra/accelerator/simple-sandbox.parameters.json \
+  --name "alz-sandbox-$(date +%Y%m%d-%H%M%S)"
 ```
 
-### 💰 Cost Estimation (Sandbox)
+### What's Included
 
-- **App Service Plan (Basic B1)**: ~$13/month
-- **Storage Account (LRS)**: ~$2/month
-- **Log Analytics**: ~$3/month (30 days retention)
-- **VNet/Peering**: Minimal/Free
-- **🏷️ Total**: ~$18/month
+- **Hub-spoke networking** (10.0.0.0/16, 10.1.0.0/16)
+- **Web App + Storage** with security compliance
+- **Log Analytics** workspace for monitoring
+- **VNet peering** between hub and spoke
 
-### 🔧 Customization Options
+### Validation
 
-Edit `infra/accelerator/simple-sandbox.parameters.json`:
+```bash
+# Check deployment
+az resource list --resource-group rg-alz-hub-sandbox --output table
 
-```json
-{
-  "parameters": {
-    "location": {
-      "value": "eastus" // Change region
-    },
-    "organizationPrefix": {
-      "value": "myorg" // Change naming prefix
-    },
-    "enableBastion": {
-      "value": true // Enable Azure Bastion for secure VM access
-    },
-    "enableAppWorkloads": {
-      "value": false // Disable apps to save cost
-    }
-  }
-}
+# Test web app
+WEBAPP_URL=$(az deployment sub show --name "DEPLOYMENT_NAME" --query 'properties.outputs.connectionInfo.value.webApp.hostname' -o tsv)
+curl -I "https://$WEBAPP_URL"  # Should return 200
+```
+
+### Cleanup
+
+```bash
+az group delete --name rg-alz-hub-sandbox --yes --no-wait
+az group delete --name rg-alz-spoke-sandbox --yes --no-wait
 ```
 
 ---
 
-## Option 2: Production Enterprise Deployment 🏢
+## 🏢 Enterprise Option
 
-### 📋 Purpose
-
-- **Multi-subscription** enterprise deployment
-- **Management Group** scoped deployment
-- **Subscription vending** with automated provisioning
-- **Azure Firewall** + **DDoS Standard** protection
-- **Private DNS zones** and **Private Endpoints**
-- **Enterprise security** and compliance built-in
+**Purpose:** Multi-subscription production with governance
 
 ### Prerequisites
 
-```bash
-# Login with appropriate permissions
-az login --tenant YOUR_TENANT_ID
+- Management Group Contributor role
+- Subscription Creator permissions
+- Enterprise Azure AD tenant
 
-# Ensure you have Management Group Contributor role
-az role assignment list --assignee $(az ad signed-in-user show --query id -o tsv) --include-inherited --query "[?roleDefinitionName=='Management Group Contributor']" -o table
-
-# Verify management group access
-az account management-group list --query "[].{name:name,displayName:displayName}" -o table
-```
-
-### 🔧 Configuration
-
-Update the parameter file with your environment details:
+### Deployment
 
 ```bash
-# Edit the production parameters
-nano infra/accelerator/alz-avm-patterns.parameters.json
-```
-
-Update the following values:
-
-```json
-{
-  "parameters": {
-    "managementGroupId": {
-      "value": "YOUR_MANAGEMENT_GROUP_ID" // Update this
-    },
-    "location": {
-      "value": "westeurope"
-    },
-    "environment": {
-      "value": "prod"
-    },
-    "enableAzureFirewall": {
-      "value": true // Enterprise firewall
-    },
-    "enableBastion": {
-      "value": true // Secure VM access
-    },
-    "applicationWorkloads": {
-      "value": {
-        "enableWebApp": true,
-        "enableContainerApps": true,
-        "enablePostgreSQL": true,
-        "enableStorage": true,
-        "enableAppGateway": true // Web Application Firewall
-      }
-    }
-  }
-}
-```
-
-### 🚀 Deployment Command
-
-```bash
-# Deploy the enterprise ALZ with full patterns
 az deployment mg create \
-  --management-group-id "YOUR_MANAGEMENT_GROUP_ID" \
+  --management-group-id "YOUR_MG_ID" \
   --location "westeurope" \
-  --template-file infra/accelerator/alz-avm-patterns.bicep \
-  --parameters infra/accelerator/alz-avm-patterns.parameters.json \
-  --name "alz-enterprise-$(date +%Y%m%d-%H%M%S)" \
-  --verbose
+  --template-file infra/accelerator/alz-subscription-vending-corrected.bicep \
+  --parameters @infra/accelerator/alz-subscription-vending-corrected.parameters.json \
+  --name "alz-enterprise-$(date +%Y%m%d-%H%M%S)"
 ```
 
-### 🏢 What Gets Deployed (Production)
+### What's Included
 
-- ✅ **2 New Subscriptions**: Hub and Spoke (via subscription vending)
-- ✅ **Management Group Association**: Proper governance structure
-- ✅ **Hub Networking Pattern**: Azure Firewall, Bastion, Private DNS
-- ✅ **Spoke Application Pattern**: Web Apps, Container Apps, PostgreSQL
-- ✅ **Private Endpoints**: Storage and Database with private connectivity
-- ✅ **Application Gateway**: WAF v2 protection
-- ✅ **DDoS Standard**: Network protection
-- ✅ **Zone Redundancy**: High availability across availability zones
-- ✅ **Enterprise Security**: RBAC, monitoring, compliance
+- **Subscription vending** with automated provisioning
+- **Azure Firewall + DDoS** protection
+- **Private endpoints** and DNS zones
+- **Application Gateway** with WAF
+- **Enterprise governance** policies
 
-### 💰 Cost Estimation (Production)
+**Cost:** ~$4,140/month (enterprise-grade features)
 
-- **Azure Firewall Standard**: ~$550/month
-- **Bastion Standard**: ~$140/month
-- **DDoS Standard**: ~$3,000/month
-- **Application Gateway WAF v2**: ~$250/month
-- **App Services Premium v3**: ~$150/month
-- **PostgreSQL Flexible**: ~$30/month
-- **Storage Premium**: ~$20/month
-- **🏷️ Total**: ~$4,140/month (enterprise-grade)
+**Reference:** [Azure DevOps Setup](azure-devops-setup.md) for enterprise CI/CD
 
 ---
 
-## 🔍 Deployment Validation and Troubleshooting
+## 🚫 Troubleshooting
 
-### Common Validation Commands
+### Common Issues
+
+**Template Validation:**
 
 ```bash
-# Validate templates before deployment
+# Validate before deployment
 az deployment sub validate \
   --location "westeurope" \
   --template-file infra/accelerator/simple-sandbox.bicep \
   --parameters infra/accelerator/simple-sandbox.parameters.json
-
-# Check deployment status
-az deployment sub list --output table --query "[?contains(name,'alz')]"
-
-# Get deployment outputs (very useful for connection info)
-az deployment sub show --name YOUR_DEPLOYMENT_NAME --query properties.outputs.connectionInfo.value --output table
 ```
 
-### 🚨 Common Issues and Solutions
+**AVM Module Issues:**
 
-#### 1. Module Not Found Errors
+- Check module versions in working templates
+- Reference: [AVM Bicep Registry](https://github.com/Azure/bicep-registry-modules)
+
+**Permission Errors:**
 
 ```bash
-# Issue: AVM module version not available
-# Error: Unable to restore artifact with reference "br:mcr.microsoft.com/bicep/avm/..."
+# Check subscription access
+az account show --query "{subscriptionId:id,name:name}" -o table
 
-# Solution: Check latest versions in our working template
-grep -r "br/public:avm" infra/accelerator/simple-sandbox.bicep
+# Verify management group permissions (enterprise)
+az role assignment list --assignee $(az ad signed-in-user show --query id -o tsv) --include-inherited
 ```
 
-#### 2. Permission Issues (Management Group)
+**Network Conflicts:**
 
-```bash
-# Verify required permissions
-az role assignment list --assignee $(az ad signed-in-user show --query id -o tsv) --scope "/providers/Microsoft.Management/managementGroups/YOUR_MG_ID"
+- Default ranges: Hub (10.0.0.0/16), Spoke (10.1.0.0/16)
+- Check existing VNets: `az network vnet list --query "[].addressSpace" -o table`
 
-# Required roles: Management Group Contributor, Subscription Creator
-```
-
-#### 3. Subscription Limits
-
-```bash
-# Check subscription quotas
-az vm list-usage --location "westeurope" --output table
-az storage account list --query "length(@)" # Should be < 200
-```
-
-#### 4. Network Conflicts
-
-```bash
-# Check for IP range conflicts
-az network vnet list --query "[].{name:name,addressSpace:addressSpace}" -o table
-
-# Default ranges: Hub 10.0.0.0/16, Spoke 10.1.0.0/16
-```
-
-## 🧹 Cleanup Instructions
-
-### Sandbox Cleanup
-
-```bash
-# Delete sandbox resource groups (SAFE FOR TESTING)
-az group delete --name rg-alz-hub-sandbox --yes --no-wait
-az group delete --name rg-alz-spoke-sandbox --yes --no-wait
-
-# Verify cleanup
-az group list --query "[?contains(name,'alz')].name" -o table
-```
-
-### Production Cleanup
-
-```bash
-# ⚠️ CAUTION: This affects production subscriptions
-az deployment mg delete --management-group-id YOUR_MG_ID --name YOUR_DEPLOYMENT_NAME
-
-# Note: Subscription cleanup requires additional steps through Azure portal
-```
-
-## 📊 Feature Comparison
-
-| Feature               | Sandbox Deployment        | Production Deployment                     |
-| --------------------- | ------------------------- | ----------------------------------------- |
-| **Scope**             | Single subscription       | Management Group + Multiple subscriptions |
-| **Deployment Time**   | ~3 minutes ✅             | ~15-30 minutes                            |
-| **Monthly Cost**      | ~$18 💚                   | ~$4,140 💰                                |
-| **Security Level**    | Basic + SSH keys          | Enterprise-grade + all features           |
-| **Networking**        | Basic hub-spoke           | Full hub-spoke + Firewall + DDoS          |
-| **High Availability** | Single zone               | Multi-zone redundant                      |
-| **Use Case**          | Testing, PoC, Learning ✅ | Production, Enterprise                    |
-| **Prerequisites**     | Subscription access       | Management Group permissions              |
-| **AVM Modules**       | Resource modules          | Pattern + Resource modules                |
-
-## 🎓 Learning Path Recommendations
-
-### 1. Start with Sandbox (Recommended)
-
-✅ **Completed**: Simple sandbox deployment tested and working!
-
-```bash
-# You can now explore:
-- Web app at: https://app-alz-web-sandbox.azurewebsites.net
-- Hub VNet: vnet-alz-hub-sandbox (10.0.0.0/16)
-- Spoke VNet: vnet-alz-spoke-sandbox (10.1.0.0/16)
-- Storage: stalzsandboxhqilxdzf
-- Monitoring: log-alz-hub-sandbox
-```
-
-### 2. Add Test VMs with SSH
-
-```bash
-# Next step: Deploy test VMs to validate SSH key access via Bastion
-# Enable Bastion in parameters and deploy VMs in both hub and spoke
-```
-
-### 3. Extend with Additional Services
-
-```bash
-# Add PostgreSQL, Container Apps, Application Gateway
-# Enable in simple-sandbox.parameters.json and redeploy
-```
-
-### 4. Progress to Production
-
-```bash
-# After mastering sandbox, deploy production with subscription vending
-# Requires Management Group permissions and enterprise planning
-```
-
-## 🚀 Next Steps After Deployment
-
-### For Sandbox Environment ✅
-
-1. **✅ Test Applications**: Access the deployed web app (working)
-2. **🔜 Add Test VMs**: Deploy VMs to test Bastion access with SSH keys
-3. **🔜 Configure Monitoring**: Set up alerts and dashboards in Log Analytics
-4. **🔜 Cost Management**: Monitor spending and optimize resources
-
-### For Production Environment
-
-1. **Identity Integration**: Configure Azure AD/Entra ID integration
-2. **Hybrid Connectivity**: Set up ExpressRoute or VPN connections
-3. **Governance**: Implement Azure Policy and blueprints
-4. **Backup Strategy**: Configure Azure Backup and Site Recovery
-5. **Security**: Enable Security Center and Sentinel
-6. **Compliance**: Implement regulatory compliance frameworks
-
-## 📚 Additional Resources
-
-- [Azure Verified Modules Documentation](https://azure.github.io/Azure-Verified-Modules/)
-- [Azure Landing Zone Design Areas](https://docs.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/design-areas)
-- [Bicep Language Reference](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/)
-- [Azure Well-Architected Framework](https://docs.microsoft.com/en-us/azure/architecture/framework/)
-
-## 🤝 Support and Contribution
-
-- **Issues**: Report in GitHub Issues
-- **Contributions**: Follow standard GitHub flow
-- **Documentation**: Update this guide for improvements
-- **Security**: Report vulnerabilities privately
+**Detailed Solutions:** [Pre-commit Errors Analysis](pre-commit-errors-analysis.md)
 
 ---
 
-## ✅ Deployment Status Summary
+## 📚 Official Documentation
 
-### Successfully Tested ✅
+### Microsoft Resources
 
-- **Simple Sandbox Deployment**: Deployed and verified working
-- **SSH Key Generation**: Keys created and secured
-- **Hub-Spoke Networking**: VNet peering working
-- **Application Services**: Web app accessible
-- **Monitoring**: Log Analytics workspace ready
-- **Cost**: Confirmed ~$18/month budget
+- [Azure Landing Zones](https://docs.microsoft.com/en-us/azure/cloud-adoption-framework/ready/landing-zone/) - Complete ALZ guidance
+- [Azure Verified Modules](https://azure.github.io/Azure-Verified-Modules/) - Official AVM documentation
+- [AVM Bicep Registry](https://github.com/Azure/bicep-registry-modules) - Source code for all AVM Bicep modules
+- [Azure Well-Architected Framework](https://docs.microsoft.com/en-us/azure/architecture/framework/) - Architecture principles
 
-### Ready for Testing 🔜
+### Deployment Guides
 
-- **Production Enterprise Deployment**: Template ready, requires MG permissions
-- **Azure Bastion**: Template ready, enable in parameters
-- **Additional Services**: PostgreSQL, Container Apps, App Gateway modules ready
+- [Azure CLI Reference](https://docs.microsoft.com/en-us/cli/azure/deployment) - Deployment commands
+- [Bicep Language](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/) - Infrastructure as Code
+- [Management Groups](https://docs.microsoft.com/en-us/azure/governance/management-groups/) - Enterprise governance
 
-**🎯 Recommendation**: Start with the sandbox deployment to learn AVM patterns, then progress to production when enterprise requirements are defined.
+---
+
+## 📚 Related Documents
+
+- [Azure Sandbox Policies Overview](azure-sandbox-policies-overview.md) - Policy requirements and naming conventions
+- [Pre-commit Hooks Guide](pre-commit-hooks-guide.md) - Code validation setup
+- [Terraform Deployment Guide](terraform-deployment-guide.md) - Terraform-specific procedures
+- [Zero Trust Maturity Roadmap](zero-trust-maturity-roadmap.md) - Security progression planning
+- [Azure DevOps Setup](azure-devops-setup.md) - Enterprise CI/CD pipelines
+
+---
+
+**Last Updated:** 2025-09-28  
+**Purpose:** Essential Azure Landing Zone deployment using Azure Verified Modules

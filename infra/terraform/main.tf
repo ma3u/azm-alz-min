@@ -155,20 +155,10 @@ resource "azurerm_key_vault" "main" {
     default_action = var.enable_private_endpoint ? "Deny" : "Allow"
 
     # Allow all IPs for non-production environments
-    dynamic "ip_rules" {
-      for_each = var.environment == "prod" ? [] : ["0.0.0.0/0"]
-      content {
-        value = ip_rules.value
-      }
-    }
+    ip_rules = var.environment == "prod" ? [] : ["0.0.0.0/0"]
 
     # Virtual network rules for Key Vault subnet
-    dynamic "virtual_network_subnet_ids" {
-      for_each = var.virtual_network_enabled && !var.enable_private_endpoint ? [azurerm_subnet.key_vault[0].id] : []
-      content {
-        subnet_id = virtual_network_subnet_ids.value
-      }
-    }
+    virtual_network_subnet_ids = var.virtual_network_enabled && !var.enable_private_endpoint ? [azurerm_subnet.key_vault[0].id] : []
   }
 
   tags = local.common_tags

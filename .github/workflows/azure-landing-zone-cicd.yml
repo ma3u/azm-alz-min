@@ -1,0 +1,647 @@
+name: 🚀 Azure Landing Zone CI/CD Pipeline
+
+# Trigger on pushes and PRs to main branches, and infrastructure changes
+on:
+  push:
+    branches: [main, develop, feature/*]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/**'
+      - 'scripts/**'
+      - '.pre-commit-config.yaml'
+      - '.checkov.yaml'
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/**'
+      - 'scripts/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'sandbox'
+        type: choice
+        options:
+          - sandbox
+          - dev
+          - staging
+          - prod
+      force_deploy:
+        description: 'Force deployment (skip validation failures)'
+        required: false
+        default: false
+        type: boolean
+
+# Global environment variables
+env:
+  AZURE_REGION: westeurope
+  TERRAFORM_VERSION: '1.9.5'
+  BICEP_VERSION: 'latest'
+  NODE_VERSION: '20.x'
+
+# Define reusable environment configurations
+jobs:
+  # ====================================================
+  # STAGE 1: PRE-DEPLOYMENT VALIDATION & SECURITY
+  # ====================================================
+
+  pre-validation:
+    name: 🔍 Pre-Deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+
+    steps:
+      - name: 🛒 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for better analysis
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: '**/package-lock.json'
+
+      - name: 🏗️ Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 📦 Install Bicep CLI
+        run: az bicep install
+
+      - name: 🐍 Setup Python for Checkov
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 Install Security Tools
+        run: |
+          # Install Checkov for security scanning
+          pip install checkov==3.0.34
+
+          # Install pre-commit for validation
+          pip install pre-commit==3.5.0
+
+          # Install additional tools
+          pip install yamllint==1.33.0
+
+      - name: 🔍 Run Pre-commit Hooks
+        run: |
+          # Install pre-commit hooks
+          pre-commit install
+
+          # Run all pre-commit hooks on changed files
+          pre-commit run --all-files || {
+            echo "❌ Pre-commit validation failed"
+            echo "::warning::Some pre-commit checks failed - see details above"
+            # Don't fail the job for warnings
+            true
+          }
+
+      - name: 🛡️ Security Scanning with Checkov
+        run: |
+          echo "🔍 Running Checkov security scan..."
+
+          # Run Checkov on infrastructure files
+          checkov \
+            --config-file .checkov.yaml \
+            --directory infra/ \
+            --output cli \
+            --output sarif \
+            --output-file-path reports/ \
+            --quiet \
+            --compact || {
+            echo "❌ Security scan found issues"
+            echo "::warning::Security vulnerabilities detected - review required"
+            # Allow job to continue for sandbox environment
+            if [[ "${{ github.event.inputs.environment || 'sandbox' }}" != "sandbox" ]]; then
+              exit 1
+            fi
+          }
+
+      - name: 📊 Upload Checkov SARIF Results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: reports/checkov.sarif
+          category: checkov-security-scan
+
+      - name: 🔍 Validate AVM Module Versions
+        run: |
+          echo "🔍 Checking AVM module versions..."
+          find infra/ -name "*.bicep" -type f | while read -r file; do
+            if [[ -f "$file" ]]; then
+              echo "Validating AVM modules in: $file"
+              ./scripts/check-avm-versions.sh "$file" || {
+                echo "::warning::AVM version issues found in $file"
+                true  # Don't fail for version warnings
+              }
+            fi
+          done
+
+      - name: 🏷️ Validate Naming Conventions
+        run: |
+          echo "🏷️ Validating Azure naming conventions..."
+          find infra/ -name "*.bicep" -o -name "*.tf" | while read -r file; do
+            if [[ -f "$file" ]]; then
+              ./scripts/validate-naming.sh "$file" || {
+                echo "::warning::Naming convention issues found in $file"
+                true  # Don't fail for naming warnings
+              }
+            fi
+          done
+
+      - name: 🔧 Check Terraform Version Requirements
+        run: |
+          echo "🔧 Checking Terraform version requirements..."
+          find infra/ -name "*.tf" | head -1 | while read -r file; do
+            if [[ -f "$file" ]]; then
+              ./scripts/check-terraform-version.sh "$file" || {
+                echo "::warning::Terraform version issues found"
+                true  # Don't fail for version warnings
+              }
+            fi
+          done
+
+      - name: 🗂️ Generate Deployment Matrix
+        id: matrix
+        run: |
+          echo "Generating deployment matrix..."
+
+          # Define deployment targets based on changed files
+          MATRIX='{"include": []}'
+
+          # Check for Bicep changes
+          if git diff --name-only HEAD~1 2>/dev/null | grep -E '\.bicep$' || [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+            MATRIX=$(echo "$MATRIX" | jq '.include += [{"type": "bicep", "path": "infra/bicep/sandbox", "template": "main.bicep", "env": "sandbox"}]')
+          fi
+
+          # Check for Terraform changes
+          if git diff --name-only HEAD~1 2>/dev/null | grep -E '\.tf$' || [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
+            MATRIX=$(echo "$MATRIX" | jq '.include += [{"type": "terraform", "path": "infra/terraform/simple-sandbox", "env": "sandbox"}]')
+          fi
+
+          # If no changes detected, add default sandbox deployment
+          if [[ "$(echo "$MATRIX" | jq '.include | length')" == "0" ]]; then
+            MATRIX='{"include": [{"type": "bicep", "path": "infra/bicep/sandbox", "template": "main.bicep", "env": "sandbox"}]}'
+          fi
+
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "🎯 Deployment matrix: $MATRIX"
+
+  # ====================================================
+  # STAGE 2: INFRASTRUCTURE VALIDATION & WHAT-IF
+  # ====================================================
+
+  infrastructure-validation:
+    name: 🧪 Infrastructure Validation
+    runs-on: ubuntu-latest
+    needs: pre-validation
+    if: ${{ needs.pre-validation.outputs.matrix != '{}' }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.pre-validation.outputs.matrix) }}
+
+    steps:
+      - name: 🛒 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Azure CLI & Tools
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 📦 Install Azure Tools
+        run: |
+          az bicep install
+          az extension add --name subscription --yes
+
+      - name: 🏗️ Setup Terraform (if needed)
+        if: matrix.type == 'terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: 🔍 Bicep Template Validation
+        if: matrix.type == 'bicep'
+        working-directory: ${{ matrix.path }}
+        run: |
+          echo "🔍 Validating Bicep template: ${{ matrix.template }}"
+
+          # Build template to check syntax
+          az bicep build --file ${{ matrix.template }}
+
+          # Validate deployment template
+          az deployment sub validate \
+            --location ${{ env.AZURE_REGION }} \
+            --template-file ${{ matrix.template }} \
+            --parameters @main.parameters.json \
+            --verbose
+
+          echo "✅ Bicep template validation passed"
+
+      - name: 📋 Bicep What-If Analysis
+        if: matrix.type == 'bicep'
+        working-directory: ${{ matrix.path }}
+        run: |
+          echo "📋 Running What-If analysis for Bicep deployment..."
+
+          WHAT_IF_OUTPUT=$(az deployment sub what-if \
+            --location ${{ env.AZURE_REGION }} \
+            --template-file ${{ matrix.template }} \
+            --parameters @main.parameters.json \
+            --no-pretty-print \
+            2>&1)
+
+          echo "$WHAT_IF_OUTPUT"
+
+          # Save What-If results for review
+          echo "$WHAT_IF_OUTPUT" > what-if-results.txt
+
+          # Check for destructive changes
+          if echo "$WHAT_IF_OUTPUT" | grep -i "delete\|remove"; then
+            echo "⚠️ Destructive changes detected!"
+            echo "::warning::Deployment includes resource deletions - review required"
+          fi
+
+      - name: 🔍 Terraform Validation
+        if: matrix.type == 'terraform'
+        working-directory: ${{ matrix.path }}
+        run: |
+          echo "🔍 Validating Terraform configuration..."
+
+          # Initialize Terraform
+          terraform init -backend=false
+
+          # Validate configuration
+          terraform validate
+
+          # Format check
+          terraform fmt -check=true -diff=true
+
+          echo "✅ Terraform validation passed"
+
+      - name: 📋 Terraform Plan
+        if: matrix.type == 'terraform'
+        working-directory: ${{ matrix.path }}
+        run: |
+          echo "📋 Running Terraform plan..."
+
+          # Initialize with backend
+          terraform init
+
+          # Generate plan
+          terraform plan \
+            -var-file=terraform.tfvars \
+            -out=tfplan \
+            -detailed-exitcode \
+            -no-color 2>&1 | tee terraform-plan.txt
+
+          # Check plan status
+          PLAN_EXIT_CODE=$?
+          if [[ $PLAN_EXIT_CODE -eq 1 ]]; then
+            echo "❌ Terraform plan failed"
+            exit 1
+          elif [[ $PLAN_EXIT_CODE -eq 2 ]]; then
+            echo "📝 Terraform plan has changes"
+          else
+            echo "✅ Terraform plan - no changes"
+          fi
+
+      - name: 📊 Upload Validation Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: validation-results-${{ matrix.type }}-${{ matrix.env }}
+          path: |
+            ${{ matrix.path }}/*.txt
+            ${{ matrix.path }}/*.json
+            ${{ matrix.path }}/tfplan
+          retention-days: 30
+
+  # ====================================================
+  # STAGE 3: SANDBOX DEPLOYMENT
+  # ====================================================
+
+  deploy-sandbox:
+    name: 🚀 Deploy to Sandbox
+    runs-on: ubuntu-latest
+    needs: [pre-validation, infrastructure-validation]
+    if: |
+      (github.ref == 'refs/heads/main' ||
+       github.ref == 'refs/heads/develop' ||
+       github.event.inputs.environment == 'sandbox' ||
+       contains(github.ref, 'feature/')) &&
+      needs.pre-validation.outputs.matrix != '{"include": []}'
+    environment:
+      name: sandbox
+      url: https://portal.azure.com
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.pre-validation.outputs.matrix) }}
+
+    steps:
+      - name: 🛒 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🎯 Acquire Deployment Lock
+        run: |
+          chmod +x ./scripts/deployment-coordinator.sh
+
+          echo "🎯 Attempting to acquire deployment lock..."
+          ./scripts/deployment-coordinator.sh acquire github ${{ matrix.env }} || {
+            echo "❌ Failed to acquire deployment lock"
+            echo "Another deployment may be in progress (Azure DevOps or GitHub Actions)"
+
+            # Check lock status for details
+            ./scripts/deployment-coordinator.sh check ${{ matrix.env }} || true
+
+            echo "💡 Options:"
+            echo "  1. Wait for the other deployment to complete"
+            echo "  2. Cancel this deployment"
+            echo "  3. Check the other pipeline's status"
+            exit 1
+          }
+
+          echo "✅ Deployment lock acquired - proceeding with deployment"
+          echo "🚨 IMPORTANT: Lock will be automatically released after deployment"
+
+      - name: 📦 Install Azure Tools
+        run: |
+          az bicep install
+          az extension add --name resource-graph --yes
+
+      - name: 🏗️ Setup Terraform (if needed)
+        if: matrix.type == 'terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: 📥 Download Validation Artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: validation-results-${{ matrix.type }}-${{ matrix.env }}
+          path: ${{ matrix.path }}
+
+      - name: 🚀 Deploy Bicep Template
+        if: matrix.type == 'bicep'
+        working-directory: ${{ matrix.path }}
+        run: |
+          echo "🚀 Deploying Bicep template to sandbox..."
+
+          DEPLOYMENT_NAME="alz-${{ matrix.env }}-$(date +%Y%m%d-%H%M%S)"
+
+          # Deploy to Azure
+          az deployment sub create \
+            --location ${{ env.AZURE_REGION }} \
+            --template-file ${{ matrix.template }} \
+            --parameters @main.parameters.json \
+            --name "$DEPLOYMENT_NAME" \
+            --verbose \
+            --output json > deployment-output.json
+
+          # Extract deployment outputs
+          DEPLOYMENT_ID=$(jq -r '.id' deployment-output.json)
+          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_ENV
+
+          # Get deployment status
+          az deployment sub show \
+            --name "$DEPLOYMENT_NAME" \
+            --query 'properties.outputs' \
+            --output yaml > deployment-outputs.yaml
+
+          echo "✅ Bicep deployment completed: $DEPLOYMENT_NAME"
+
+      - name: 🚀 Deploy Terraform Configuration
+        if: matrix.type == 'terraform'
+        working-directory: ${{ matrix.path }}
+        run: |
+          echo "🚀 Deploying Terraform configuration to sandbox..."
+
+          # Initialize Terraform
+          terraform init
+
+          # Apply configuration
+          terraform apply \
+            -var-file=terraform.tfvars \
+            -auto-approve \
+            -no-color \
+            tfplan 2>&1 | tee terraform-apply.txt
+
+          # Extract outputs
+          terraform output -json > terraform-outputs.json
+
+          echo "✅ Terraform deployment completed"
+
+      - name: 🧪 Post-Deployment Testing
+        run: |
+          echo "🧪 Running post-deployment tests..."
+
+          # Wait for resources to be fully provisioned
+          sleep 60
+
+          # Test resource group existence
+          if az group show --name "rg-alz-hub-sandbox" --output none 2>/dev/null; then
+            echo "✅ Hub resource group exists"
+          else
+            echo "❌ Hub resource group not found"
+            exit 1
+          fi
+
+          if az group show --name "rg-alz-spoke-sandbox" --output none 2>/dev/null; then
+            echo "✅ Spoke resource group exists"
+          else
+            echo "❌ Spoke resource group not found"
+            exit 1
+          fi
+
+          # Test web app connectivity (if deployed)
+          if az webapp list --resource-group "rg-alz-spoke-sandbox" --query "[0].defaultHostName" -o tsv 2>/dev/null | grep -q "azurewebsites.net"; then
+            WEB_APP_URL=$(az webapp list --resource-group "rg-alz-spoke-sandbox" --query "[0].defaultHostName" -o tsv)
+            echo "🌐 Testing web app connectivity: $WEB_APP_URL"
+
+            if curl -sSf "https://$WEB_APP_URL" > /dev/null; then
+              echo "✅ Web app is accessible"
+            else
+              echo "⚠️ Web app not responding (may still be starting up)"
+            fi
+          fi
+
+      - name: 💰 Cost Estimation
+        run: |
+          echo "💰 Estimating deployment costs..."
+
+          # Get resource costs for the last 7 days
+          COST_DATA=$(az consumption usage list \
+            --start-date $(date -d '7 days ago' +%Y-%m-%d) \
+            --end-date $(date +%Y-%m-%d) \
+            --query '[].{service: instanceName, cost: pretaxCost}' \
+            --output json 2>/dev/null || echo '[]')
+
+          echo "Recent cost data: $COST_DATA"
+
+          # Simple cost alerting
+          TOTAL_COST=$(echo "$COST_DATA" | jq '[.[].cost | tonumber] | add // 0')
+          echo "Total estimated cost: $TOTAL_COST USD"
+
+          if (( $(echo "$TOTAL_COST > 50" | bc -l) )); then
+            echo "⚠️ Cost alert: Deployment costs exceed $50 USD"
+            echo "::warning::High infrastructure costs detected"
+          fi
+
+      - name: 🔓 Release Deployment Lock (Post-Deploy)
+        if: always()
+        run: |
+          chmod +x ./scripts/deployment-coordinator.sh
+
+          echo "🔓 Releasing deployment lock after deployment..."
+          ./scripts/deployment-coordinator.sh release github ${{ matrix.env }} || {
+            echo "⚠️ Warning: Failed to release deployment lock"
+            echo "::warning::Could not release deployment lock - may already be released"
+            # Don't fail the deployment for this
+            true
+          }
+
+          echo "✅ Deployment lock released - other pipelines can now deploy"
+
+      - name: 📈 Upload Deployment Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-results-${{ matrix.type }}-${{ matrix.env }}
+          path: |
+            ${{ matrix.path }}/*.json
+            ${{ matrix.path }}/*.yaml
+            ${{ matrix.path }}/*.txt
+          retention-days: 30
+
+      - name: 📝 Create Deployment Summary
+        run: |
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status | Environment |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|-------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| ${{ matrix.type }} | ✅ Deployed | ${{ matrix.env }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Region | ${{ env.AZURE_REGION }} | Azure |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | $(date) | UTC |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Useful Links" >> $GITHUB_STEP_SUMMARY
+          echo "- [Azure Portal](https://portal.azure.com)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Resource Groups](https://portal.azure.com/#blade/HubsExtension/BrowseResourceGroups)" >> $GITHUB_STEP_SUMMARY
+
+  # ====================================================
+  # STAGE 4: CLEANUP & NOTIFICATIONS
+  # ====================================================
+
+  cleanup-and-notify:
+    name: 🧹 Cleanup & Notifications
+    runs-on: ubuntu-latest
+    needs: [deploy-sandbox]
+    if: always() && (needs.deploy-sandbox.result == 'success' || needs.deploy-sandbox.result == 'failure')
+
+    steps:
+      - name: 🛒 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🔓 Release Deployment Lock
+        if: always()
+        run: |
+          chmod +x ./scripts/deployment-coordinator.sh
+
+          echo "🔓 Releasing deployment lock..."
+          ./scripts/deployment-coordinator.sh release github sandbox || {
+            echo "⚠️ Warning: Failed to release deployment lock"
+            echo "Lock may have already been released or expired"
+            # Don't fail the cleanup for this
+            true
+          }
+
+          echo "✅ Deployment lock released successfully"
+
+      - name: 📊 Generate Deployment Report
+        run: |
+          echo "📊 Generating deployment report..."
+
+          # Create comprehensive deployment report
+          cat > deployment-report.md << EOF
+          # Azure Landing Zone Deployment Report
+
+          ## Summary
+          - **Workflow**: ${{ github.workflow }}
+          - **Run ID**: ${{ github.run_id }}
+          - **Trigger**: ${{ github.event_name }}
+          - **Branch**: ${{ github.ref }}
+          - **Commit**: ${{ github.sha }}
+          - **Actor**: ${{ github.actor }}
+          - **Timestamp**: $(date)
+
+          ## Results
+          - **Pre-validation**: ${{ needs.pre-validation.result }}
+          - **Infrastructure Validation**: ${{ needs.infrastructure-validation.result }}
+          - **Deployment**: ${{ needs.deploy-sandbox.result }}
+
+          ## Next Steps
+          - Review deployment outputs and test applications
+          - Monitor costs and resource utilization
+          - Consider promoting to higher environments if successful
+          EOF
+
+      - name: 🧹 Conditional Cleanup (Feature Branches)
+        if: startsWith(github.ref, 'refs/heads/feature/') && needs.deploy-sandbox.result == 'success'
+        run: |
+          echo "🧹 Cleaning up feature branch deployment..."
+
+          # Wait before cleanup to allow testing
+          echo "⏰ Waiting 5 minutes for testing..."
+          sleep 300
+
+          # Clean up sandbox resources for feature branches
+          echo "Cleaning up resource groups..."
+
+          az group delete --name "rg-alz-hub-sandbox" --yes --no-wait || echo "Hub RG already deleted or doesn't exist"
+          az group delete --name "rg-alz-spoke-sandbox" --yes --no-wait || echo "Spoke RG already deleted or doesn't exist"
+
+          echo "🧹 Cleanup initiated for feature branch resources"
+
+      - name: 📧 Success Notification
+        if: needs.deploy-sandbox.result == 'success'
+        run: |
+          echo "✅ Deployment completed successfully!"
+          echo "Environment: sandbox"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref }}"
+
+      - name: 🚨 Failure Notification
+        if: needs.deploy-sandbox.result == 'failure'
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Please check the logs for details."
+          echo "Environment: sandbox"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref }}"
+
+      - name: 📤 Upload Final Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: deployment-report
+          path: deployment-report.md
+          retention-days: 90
