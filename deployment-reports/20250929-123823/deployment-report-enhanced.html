@@ -24,6 +24,8 @@
         .portal-links { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
         .portal-links a { padding: 8px 12px; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em; transition: all 0.3s ease; }
         .portal-links a:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+        .resources-table a { color: #0078d4; text-decoration: none; font-weight: 500; transition: all 0.2s ease; }
+        .resources-table a:hover { color: #106ebe; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -175,18 +177,44 @@
         function loadResourceInventory() {
             const data = reportData.resources;
             let html = '<table class="resources-table"><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Resource Group</th><th>Status</th></tr></thead><tbody>';
+            
+            // Subscription ID for portal links
+            const subscriptionId = 'fdf79377-e045-462f-ac4a-630ddee7e4c3';
+            
             data.forEach(resource => {
                 const statusClass = resource.provisioningState === 'Succeeded' ? 'status-success' : 
                                   resource.provisioningState === 'Failed' ? 'status-failed' : 'status-unknown';
+                
+                // Create resource-specific portal URLs
+                const resourceUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resource.resourceGroup}/providers/${resource.type}/${resource.name}/overview`;
+                const resourceGroupUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resource.resourceGroup}/overview`;
+                
                 html += `<tr>`;
-                html += `<td>${resource.name}</td>`;
+                html += `<td><a href="${resourceUrl}" target="_blank" style="color: #0078d4; text-decoration: none;">${resource.name}</a></td>`;
                 html += `<td>${resource.type.split('/').pop()}</td>`;
                 html += `<td>${resource.location}</td>`;
-                html += `<td>${resource.resourceGroup}</td>`;
+                html += `<td><a href="${resourceGroupUrl}" target="_blank" style="color: #0078d4; text-decoration: none;">${resource.resourceGroup}</a></td>`;
                 html += `<td class="${statusClass}">${resource.provisioningState}</td>`;
                 html += `</tr>`;
             });
             html += '</tbody></table>';
+            
+            // Add resource group summary with direct links
+            const resourceGroups = [...new Set(data.map(r => r.resourceGroup))];
+            html += `<div style="margin-top: 20px;">`;
+            html += `<h5>🔗 Resource Group Links:</h5>`;
+            html += `<div class="portal-links">`;
+            
+            resourceGroups.forEach(rg => {
+                const resourceCount = data.filter(r => r.resourceGroup === rg).length;
+                const rgUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${rg}/overview`;
+                html += `<a href="${rgUrl}" target="_blank" style="background: #0078d4;">${rg} (${resourceCount} resources)</a>`;
+            });
+            
+            html += `</div>`;
+            html += `<p style="font-size: 0.9em; color: #605e5c; margin-top: 10px;"><em>💡 Click on resource names or resource groups above to view them directly in the Azure Portal</em></p>`;
+            html += `</div>`;
+            
             document.getElementById('resource-inventory').innerHTML = html;
         }
 
@@ -195,46 +223,40 @@
             let html = `<div style="margin-bottom: 30px;">`;
             html += `<h4>💰 Estimated Monthly Cost: $${data.estimated_monthly} ${data.currency}</h4>`;
             
-            // Resource summary table with actual costs
-            html += `<h5>📊 Resource Summary:</h5>`;
-            html += `<table class="resources-table" style="margin-bottom: 20px;"><thead><tr><th>Resource Type</th><th>Count</th><th>Estimated Monthly Cost</th></tr></thead><tbody>`;
-            
-            const resourceMap = {
-                'virtual_machines': { name: 'Virtual Machines', cost: data.cost_breakdown.compute },
-                'storage_accounts': { name: 'Storage Accounts', cost: data.cost_breakdown.storage },
-                'virtual_networks': { name: 'Virtual Networks', cost: data.cost_breakdown.networking },
-                'app_service_plans': { name: 'App Service Plans', cost: data.cost_breakdown.web_services },
-                'web_apps': { name: 'Web Apps', cost: '0.00' },
-                'log_analytics_workspaces': { name: 'Log Analytics', cost: data.cost_breakdown.analytics },
-                'public_ips': { name: 'Public IP Addresses', cost: '0.00' }
-            };
-            
-            Object.entries(data.resource_details).forEach(([key, count]) => {
-                if (parseInt(count) > 0 && resourceMap[key]) {
-                    const resource = resourceMap[key];
-                    html += `<tr><td>${resource.name}</td><td>${count}</td><td>$${resource.cost}</td></tr>`;
-                }
-            });
-            html += `</tbody></table>`;
-            
-            // Enhanced cost breakdown with percentages
+            // Cost breakdown with percentages and resource counts
             html += `<h5>💵 Cost Breakdown by Service:</h5>`;
             html += `<ul style="list-style-type: none; padding-left: 0;">`;
+            
+            // Map to show resource counts alongside costs
+            const resourceCounts = {
+                'storage': data.resource_details.storage_accounts + ' Storage Account',
+                'networking': data.resource_details.virtual_networks + ' Virtual Networks', 
+                'analytics': data.resource_details.log_analytics_workspaces + ' Log Analytics Workspace',
+                'web_services': data.resource_details.app_service_plans + ' App Service Plan'
+            };
+            
             Object.entries(data.cost_breakdown).forEach(([category, cost]) => {
                 if (parseFloat(cost) > 0) {
                     const percentage = ((parseFloat(cost) / parseFloat(data.estimated_monthly)) * 100).toFixed(1);
                     const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    html += `<li style="margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-left: 4px solid #0078d4;">`;
-                    html += `<strong>${categoryName}:</strong> $${cost} (${percentage}%)`;
-                    html += `</li>`;
+                    const resourceInfo = resourceCounts[category] ? ` (${resourceCounts[category]})` : '';
+                    
+                    html += `<li style="margin-bottom: 8px; padding: 12px; background: #f8f9fa; border-left: 4px solid #0078d4; border-radius: 4px;">`;
+                    html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
+                    html += `<span><strong>${categoryName}</strong>${resourceInfo}</span>`;
+                    html += `<span style="font-weight: bold; color: #0078d4;">$${cost} (${percentage}%)</span>`;
+                    html += `</div></li>`;
                 }
             });
             html += `</ul>`;
             
-            // Pricing notes
+            // Simplified pricing notes (keep only the most important ones)
             html += `<h5>📝 Pricing Notes:</h5>`;
             html += `<ul style="font-size: 0.9em; color: #605e5c;">`;
-            data.pricing_notes.forEach(note => {
+            const importantNotes = data.pricing_notes.filter(note => 
+                note.includes('App Service') || note.includes('Storage') || note.includes('Actual costs')
+            );
+            importantNotes.forEach(note => {
                 html += `<li>${note}</li>`;
             });
             html += `</ul>`;
@@ -243,8 +265,7 @@
             html += `<h5>🔗 Azure Portal Links:</h5>`;
             html += `<div class="portal-links">`;
             
-            // Get subscription ID dynamically (placeholder for now)
-            const subscriptionId = 'fdf79377-e045-462f-ac4a-630ddee7e4c3'; // Your actual subscription ID
+            const subscriptionId = 'fdf79377-e045-462f-ac4a-630ddee7e4c3';
             const resourceGroup = data.resource_group;
             
             html += `<a href="https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/overview" target="_blank" style="background: #0078d4;">🏗️ Resource Groups</a>`;
