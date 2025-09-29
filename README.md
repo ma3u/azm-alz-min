@@ -12,6 +12,8 @@ This repository demonstrates **AI-powered GitOps practices** for Azure Landing Z
 
 Based on the [LinkedIn article](https://www.linkedin.com/pulse/ai-powered-gitops-azure-landing-zones-verified-matthias-buchhorn-roth-hqlke/?trackingId=28d0MXV%2Bux4OpZszqzWQxw%3D%3D), this demonstrates modern infrastructure patterns that enterprise teams can adopt immediately.
 
+> **📋 Repository Update (Sept 2025)**: This repository has been reorganized for better structure and usability. Documentation moved from nested folders to `docs/`, deployment reports now include interactive HTML dashboards in `deployment-reports/`, and production-ready templates are consolidated in `blueprints/` with development work in `infra/`. All links have been updated accordingly.
+
 ## 📋 Table of Contents
 
 - [⚡ Quick Start - Choose Your Path](#-quick-start---choose-your-path)
@@ -77,7 +79,13 @@ az deployment sub create \
 - 📈 **HTML/JSON reports** for sharing and audit trails
 - 🔄 **Report history management** (keeps last 5 deployments)
 
-**📊 [View Deployment Reports Dashboard](reports/deployments/index.html)**
+**📊 [View Deployment Reports Dashboard](deployment-reports/index.html)**
+
+> **💡 Viewing HTML Reports**: Since GitHub doesn't render HTML files directly, you have three options:
+>
+> 1. **Local viewing**: `open deployment-reports/index.html` (opens in your browser)
+> 2. **Local server**: `cd deployment-reports && python3 -m http.server 8000` then visit `http://localhost:8000`
+> 3. **GitHub Pages**: Enable Pages in repository settings to share reports online
 
 **Report includes:**
 
@@ -87,6 +95,8 @@ az deployment sub create \
 - 🔒 Security score (0-100) with findings and recommendations
 - 🧪 Testing commands for validation
 - 🧹 Cleanup commands for resource removal
+- 📈 Interactive charts and dashboards
+- 📋 Historical deployment tracking
 
 ### 📖 Learn First (Recommended)
 
@@ -131,7 +141,7 @@ pip install pre-commit && pre-commit install
 - [🏗️ Terraform Deployment Guide](docs/terraform-deployment-guide.md) - Terraform-specific procedures
 - [🔄 Terraform CI/CD Guide](docs/terraform-cicd-guide.md) - GitHub Actions automation
 - [📚 AVM Modules Guide](docs/avm-modules-guide.md) - AVM reference and best practices
-- [📊 Deployment Reporting Guide](docs/deployment-reporting-guide.md) - Comprehensive deployment insights
+- [📊 Deployment Reporting Guide](docs/deployment-reporting-guide.md) - Comprehensive deployment insights with HTML dashboards
 
 ### 🏭 Enterprise Integration
 
@@ -242,25 +252,34 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = {
 
 ```
 azure-landingzone/
-├── blueprints/
+├── blueprints/                  # 🚀 Production-ready templates (RECOMMENDED)
 │   ├── bicep/                   # ✅ Bicep templates using AVM modules
 │   │   ├── hub-spoke/           # Hub-spoke ALZ (~$30/month sandbox)
 │   │   └── foundation/          # Basic foundation ALZ
 │   └── terraform/               # ✅ Terraform alternatives with AVM
 │       └── foundation/          # Terraform-based ALZ
-├── docs/                        # Complete documentation library
-├── automation/scripts/          # Deployment and validation scripts
-├── reports/deployments/         # Automated deployment reports
-├── .github/workflows/           # GitHub Actions CI/CD
-└── sandbox/                     # Terraform sandbox examples
+├── infra/                       # 🔧 Development and legacy templates
+│   ├── accelerator/             # Original AVM-based deployment templates
+│   ├── bicep/                   # Development Bicep templates
+│   │   └── sandbox/             # Sandbox-specific implementations
+│   └── terraform/               # Development Terraform templates
+├── docs/                        # 📚 Complete documentation library
+├── automation/scripts/          # 🤖 Deployment and validation scripts
+├── deployment-reports/          # 📊 Automated deployment reports with HTML dashboards
+├── sandbox/                     # 🧪 Terraform sandbox examples and testing
+├── .github/workflows/           # ⚙️ GitHub Actions CI/CD automation
+├── environments/                # 🌍 Environment-specific configurations
+├── examples/                    # 💡 Sample implementations and tutorials
+└── archived/                    # 📦 Archived templates and deprecated code
 ```
 
 ### 🎯 Architecture Patterns
 
-- **[Hub-Spoke Architecture](docs/hub-spoke-design.md):** Cost-optimized networking with centralized services (~$30/month)
-- **Foundation Pattern:** Basic single-subscription ALZ for development and testing
-- **Enterprise Pattern:** Multi-subscription with management groups and subscription vending
+- **Hub-Spoke Architecture:** Cost-optimized networking with centralized services (~$30/month) - Available in `blueprints/bicep/hub-spoke/`
+- **Foundation Pattern:** Basic single-subscription ALZ for development and testing - Available in `blueprints/bicep/foundation/`
+- **Enterprise Pattern:** Multi-subscription with management groups and subscription vending - Available in `infra/accelerator/`
 - **Security Framework:** [Zero Trust progression](docs/zero-trust-maturity-roadmap.md) from Level 1 to enterprise-grade
+- **Deployment Reports:** Interactive HTML dashboards available in `deployment-reports/` with cost, security, and resource analysis
 
 ---
 
