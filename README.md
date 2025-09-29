@@ -50,7 +50,7 @@ az deployment sub create \
   --name "alz-sandbox-$(date +%Y%m%d-%H%M%S)"
 ```
 
-**Cost:** ~$25/month sandbox environment (Standard Container Registry)
+**Cost:** ~$30/month sandbox environment (Standard Container Registry)
 **Result:** Complete hub-spoke ALZ with security compliance
 
 ### 📊 Deploy with Comprehensive Reporting (Recommended)
@@ -77,7 +77,7 @@ az deployment sub create \
 - 📈 **HTML/JSON reports** for sharing and audit trails
 - 🔄 **Report history management** (keeps last 5 deployments)
 
-**📊 [View Deployment Report Example](docs/images/deployment-report-example.md)**
+**📊 [View Deployment Reports Dashboard](reports/deployments/index.html)**
 
 **Report includes:**
 
@@ -144,11 +144,6 @@ pip install pre-commit && pre-commit install
 - [🔒 ACR Vulnerability Scanning Guide](docs/acr-vulnerability-scanning-guide.md) - Container security
 - [🛡️ Zero Trust Maturity Roadmap](docs/zero-trust-maturity-roadmap.md) - Security progression
 
-### 🤖 AI-Powered Development
-
-- [🤖 AI-Powered GitOps Article](docs/ai-powered-gitops-article.md) - AI methodology
-- [WARP.md](WARP.md) - AI development guidance with policy rules
-
 ## 🎯 How to Use This Repository
 
 ### 📍 Choose Your Journey
@@ -157,7 +152,7 @@ pip install pre-commit && pre-commit install
 
 1. Read [Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md)
 2. Follow [AVM Deployment Guide](docs/avm-deployment-guide.md)
-3. **Result:** Working ALZ (~$18/month, 10 minutes)
+3. **Result:** Working ALZ (~$30/month, 10 minutes)
 
 **🔧 Developers**
 
@@ -197,11 +192,11 @@ az rest --method GET --url "https://mcr.microsoft.com/v2/bicep/avm/res/{service}
 
 ### 🎯 Template Priority (Use These)
 
-| Priority | Template                                | Status                                   | Use Case       |
-| -------- | --------------------------------------- | ---------------------------------------- | -------------- | ------------- |
-| **1st**  | `blueprints/bicep/hub-spoke/main.bicep` | ✅ **WORKING**                           | Hub-Spoke ALZ  |
-|          | **2nd**                                 | `blueprints/bicep/foundation/main.bicep` | ✅ **WORKING** | Basic ALZ     |
-|          | **3rd**                                 | `blueprints/terraform/foundation/`       | ✅ **WORKING** | Terraform ALZ |
+| Priority | Template                                 | Status         | Use Case      |
+| -------- | ---------------------------------------- | -------------- | ------------- |
+| **1st**  | `blueprints/bicep/hub-spoke/main.bicep`  | ✅ **WORKING** | Hub-Spoke ALZ |
+| **2nd**  | `blueprints/bicep/foundation/main.bicep` | ✅ **WORKING** | Basic ALZ     |
+| **3rd**  | `blueprints/terraform/foundation/`       | ✅ **WORKING** | Terraform ALZ |
 
 ### 📚 Development Rules
 
@@ -237,7 +232,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = {
 
 - **⚡ Speed:** Deploy complete ALZ in 10 minutes vs. weeks
 - **🛡️ Security:** Built-in Zero Trust Level 1 compliance
-- **💰 Cost-Effective:** Sandbox testing for ~$18/month
+- **💰 Cost-Effective:** Sandbox testing for ~$30/month
 - **🤖 AI-Enhanced:** Warp integration for intelligent development
 - **📏 Standardized:** Microsoft's 14+ million deployment track record
 
@@ -247,22 +242,25 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = {
 
 ```
 azure-landingzone/
-├── infra/
-│   ├── accelerator/              # ✅ Production-ready AVM templates
-│   │   ├── simple-sandbox.bicep  # Working sandbox ALZ (~$18/month)
-│   │   └── alz-subscription-vending-corrected.bicep  # Enterprise ALZ
-│   ├── bicep/                   # Classic key vault examples
-│   └── terraform/               # Terraform alternatives
+├── blueprints/
+│   ├── bicep/                   # ✅ Bicep templates using AVM modules
+│   │   ├── hub-spoke/           # Hub-spoke ALZ (~$30/month sandbox)
+│   │   └── foundation/          # Basic foundation ALZ
+│   └── terraform/               # ✅ Terraform alternatives with AVM
+│       └── foundation/          # Terraform-based ALZ
 ├── docs/                        # Complete documentation library
+├── automation/scripts/          # Deployment and validation scripts
+├── reports/deployments/         # Automated deployment reports
 ├── .github/workflows/           # GitHub Actions CI/CD
-└── gitops/                     # ArgoCD and Flux configurations
+└── sandbox/                     # Terraform sandbox examples
 ```
 
 ### 🎯 Architecture Patterns
 
-**Sandbox Pattern:** Single subscription, hub-spoke networking, cost-optimized
-**Enterprise Pattern:** Management groups, subscription vending, full compliance
-**Security Framework:** Zero Trust Level 1 with progression roadmap
+- **[Hub-Spoke Architecture](docs/hub-spoke-design.md):** Cost-optimized networking with centralized services (~$30/month)
+- **Foundation Pattern:** Basic single-subscription ALZ for development and testing
+- **Enterprise Pattern:** Multi-subscription with management groups and subscription vending
+- **Security Framework:** [Zero Trust progression](docs/zero-trust-maturity-roadmap.md) from Level 1 to enterprise-grade
 
 ---
 
@@ -270,7 +268,7 @@ azure-landingzone/
 
 ### 🚀 Deployment Options
 
-- **Sandbox:** Single subscription testing (~$18/month)
+- **Sandbox:** Single subscription testing (~$30/month)
 - **Enterprise:** Multi-subscription with management groups
 - **Hybrid:** Bicep and Terraform support
 
@@ -309,7 +307,7 @@ azure-landingzone/
 
 ### Sandbox Testing (Recommended Start)
 
-**Cost-effective validation:** Test all AVM patterns in a single subscription for ~$18/month without Management Group requirements.
+**Cost-effective validation:** Test all AVM patterns in a single subscription for ~$30/month without Management Group requirements.
 
 **Quick deployment:**
 
@@ -317,8 +315,8 @@ azure-landingzone/
 az login
 az deployment sub create \
   --location "westeurope" \
-  --template-file infra/accelerator/simple-sandbox.bicep \
-  --parameters infra/accelerator/simple-sandbox.parameters.json \
+  --template-file blueprints/bicep/hub-spoke/main.bicep \
+  --parameters blueprints/bicep/hub-spoke/main.parameters.json \
   --name "alz-sandbox-$(date +%Y%m%d-%H%M%S)"
 ```
 
@@ -424,8 +422,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Special thanks to:
 
-- **Microsoft AVM Team** for creating production-ready Infrastructure as Code modules
-- **GitOps Community** for establishing declarative infrastructure management patterns
+- **[Azure Landing Zones Community](https://aka.ms/alz/community)** for enterprise-grade architecture guidance and patterns
+- **[Azure Verified Modules (AVM) Community](https://aka.ms/avm/community)** for production-ready Infrastructure as Code modules
+- **VS Code Extension Teams** for [Terraform](https://marketplace.visualstudio.com/items?itemName=HashiCorp.terraform) and [Bicep](https://marketplace.visualstudio.com/items?itemName=ms-azuretools.vscode-bicep) development tools
 - **Warp Team** for building AI-enhanced development workflows
 
 ---
