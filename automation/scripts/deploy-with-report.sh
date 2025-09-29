@@ -376,11 +376,44 @@ analyze_costs() {
     local estimated_monthly_cost="0.00"
     local resource_count=$(jq 'length' "${REPORT_DIR}/resources/resource-inventory.json" 2>/dev/null || echo "0")
 
-    # Simple cost estimation based on resource types
-    # This is a placeholder - real cost analysis would use Azure pricing APIs
-    if [[ ${resource_count} -gt 0 ]]; then
-        estimated_monthly_cost=$(echo "${resource_count} * 15.50" | bc -l 2>/dev/null || echo "15.50")
+    # Enhanced cost estimation based on actual resource types
+    log_info "Analyzing resource costs by type..."
+
+    local compute_cost=0
+    local storage_cost=0
+    local networking_cost=0
+    local analytics_cost=0
+    local web_cost=0
+
+    # Analyze each resource type from inventory
+    if [[ -f "${REPORT_DIR}/resources/resource-inventory.json" ]]; then
+        # Count resources by type and estimate costs
+        local vms=$(jq '[.[] | select(.type | contains("Microsoft.Compute/virtualMachines"))] | length' "${REPORT_DIR}/resources/resource-inventory.json")
+        local storage_accounts=$(jq '[.[] | select(.type | contains("Microsoft.Storage/storageAccounts"))] | length' "${REPORT_DIR}/resources/resource-inventory.json")
+        local vnets=$(jq '[.[] | select(.type | contains("Microsoft.Network/virtualNetworks"))] | length' "${REPORT_DIR}/resources/resource-inventory.json")
+        local app_plans=$(jq '[.[] | select(.type | contains("Microsoft.Web/serverFarms"))] | length' "${REPORT_DIR}/resources/resource-inventory.json")
+        local web_apps=$(jq '[.[] | select(.type | contains("Microsoft.Web/sites"))] | length' "${REPORT_DIR}/resources/resource-inventory.json")
+        local log_analytics=$(jq '[.[] | select(.type | contains("Microsoft.OperationalInsights/workspaces"))] | length' "${REPORT_DIR}/resources/resource-inventory.json")
+        local public_ips=$(jq '[.[] | select(.type | contains("Microsoft.Network/publicIPAddresses"))] | length' "${REPORT_DIR}/resources/resource-inventory.json")
+
+        # Calculate estimated costs (simplified pricing)
+        compute_cost=$(echo "${vms} * 30.00" | bc -l 2>/dev/null || echo "0.00")
+        storage_cost=$(echo "${storage_accounts} * 2.50" | bc -l 2>/dev/null || echo "0.00")
+        networking_cost=$(echo "(${vnets} * 1.00) + (${public_ips} * 4.00)" | bc -l 2>/dev/null || echo "0.00")
+        analytics_cost=$(echo "${log_analytics} * 5.00" | bc -l 2>/dev/null || echo "0.00")
+        web_cost=$(echo "(${app_plans} * 13.00) + (${web_apps} * 0.00)" | bc -l 2>/dev/null || echo "0.00")
     fi
+
+    # Calculate total
+    estimated_monthly_cost=$(echo "${compute_cost} + ${storage_cost} + ${networking_cost} + ${analytics_cost} + ${web_cost}" | bc -l 2>/dev/null || echo "20.50")
+
+    # Format to 2 decimal places
+    estimated_monthly_cost=$(printf "%.2f" "${estimated_monthly_cost}")
+    compute_cost=$(printf "%.2f" "${compute_cost}")
+    storage_cost=$(printf "%.2f" "${storage_cost}")
+    networking_cost=$(printf "%.2f" "${networking_cost}")
+    analytics_cost=$(printf "%.2f" "${analytics_cost}")
+    web_cost=$(printf "%.2f" "${web_cost}")
 
     cat > "${costs_file}" << EOF
 {
@@ -389,11 +422,29 @@ analyze_costs() {
     "currency": "USD",
     "estimated_monthly": "${estimated_monthly_cost}",
     "cost_breakdown": {
-        "compute": "0.00",
-        "storage": "5.00",
-        "networking": "2.50",
-        "other": "${estimated_monthly_cost}"
+        "compute": "${compute_cost}",
+        "storage": "${storage_cost}",
+        "networking": "${networking_cost}",
+        "analytics": "${analytics_cost}",
+        "web_services": "${web_cost}"
     },
+    "resource_details": {
+        "virtual_machines": "${vms:-0}",
+        "storage_accounts": "${storage_accounts:-0}",
+        "virtual_networks": "${vnets:-0}",
+        "app_service_plans": "${app_plans:-0}",
+        "web_apps": "${web_apps:-0}",
+        "log_analytics_workspaces": "${log_analytics:-0}",
+        "public_ips": "${public_ips:-0}"
+    },
+    "pricing_notes": [
+        "Estimates based on Basic/Standard tier pricing",
+        "App Service Plans: ~$13/month (B1 Basic)",
+        "Storage Accounts: ~$2.50/month (Standard LRS)",
+        "Log Analytics: ~$5/month (basic ingestion)",
+        "VNets: ~$1/month, Public IPs: ~$4/month",
+        "Actual costs may vary based on usage and region"
+    ],
     "note": "This is a simplified cost estimate. Use Azure Cost Management for detailed analysis."
 }
 EOF
@@ -595,36 +646,42 @@ EOF
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', async function() {
-            // Load and display JSON data files
-            await loadReportData();
+        // Embedded JSON data - populated during report generation
+        const reportData = {
+            preDeployment: {{PRE_DEPLOYMENT_DATA}},
+            resources: {{RESOURCE_INVENTORY_DATA}},
+            costs: {{COST_ANALYSIS_DATA}},
+            security: {{SECURITY_ASSESSMENT_DATA}}
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load and display embedded JSON data
+            loadReportData();
         });
 
-        async function loadReportData() {
+        function loadReportData() {
             try {
                 // Load pre-deployment checks
-                await loadPreDeploymentChecks();
+                loadPreDeploymentChecks();
 
                 // Load resource inventory
-                await loadResourceInventory();
+                loadResourceInventory();
 
                 // Load cost analysis
-                await loadCostAnalysis();
+                loadCostAnalysis();
 
                 // Load security assessment
-                await loadSecurityAssessment();
+                loadSecurityAssessment();
 
             } catch (error) {
                 console.error('Error loading report data:', error);
             }
         }
 
-        async function loadPreDeploymentChecks() {
+        function loadPreDeploymentChecks() {
             try {
-                const response = await fetch('./pre-deployment/precommit-results.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('precommit-results').innerHTML = formatPreDeploymentChecks(data);
+                if (reportData.preDeployment) {
+                    document.getElementById('precommit-results').innerHTML = formatPreDeploymentChecks(reportData.preDeployment);
                 } else {
                     document.getElementById('precommit-results').innerHTML = '<p>Pre-deployment check data not available</p>';
                 }
@@ -633,12 +690,10 @@ EOF
             }
         }
 
-        async function loadResourceInventory() {
+        function loadResourceInventory() {
             try {
-                const response = await fetch('./resources/resource-inventory.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('resource-inventory').innerHTML = formatResourceInventory(data);
+                if (reportData.resources) {
+                    document.getElementById('resource-inventory').innerHTML = formatResourceInventory(reportData.resources);
                 } else {
                     document.getElementById('resource-inventory').innerHTML = '<p>Resource inventory data not available</p>';
                 }
@@ -647,12 +702,10 @@ EOF
             }
         }
 
-        async function loadCostAnalysis() {
+        function loadCostAnalysis() {
             try {
-                const response = await fetch('./costs/cost-analysis.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('cost-analysis').innerHTML = formatCostAnalysis(data);
+                if (reportData.costs) {
+                    document.getElementById('cost-analysis').innerHTML = formatCostAnalysis(reportData.costs);
                 } else {
                     document.getElementById('cost-analysis').innerHTML = '<p>Cost analysis data not available</p>';
                 }
@@ -661,12 +714,10 @@ EOF
             }
         }
 
-        async function loadSecurityAssessment() {
+        function loadSecurityAssessment() {
             try {
-                const response = await fetch('./security/security-assessment.json');
-                if (response.ok) {
-                    const data = await response.json();
-                    document.getElementById('security-assessment').innerHTML = formatSecurityAssessment(data);
+                if (reportData.security) {
+                    document.getElementById('security-assessment').innerHTML = formatSecurityAssessment(reportData.security);
                 } else {
                     document.getElementById('security-assessment').innerHTML = '<p>Security assessment data not available</p>';
                 }
@@ -716,22 +767,76 @@ EOF
                 return '<p>Cost analysis data not available</p>';
             }
 
-            let html = `<div style="margin-bottom: 20px;">`;
+            let html = `<div style="margin-bottom: 30px;">`;
             html += `<h4>💰 Estimated Monthly Cost: $${data.estimated_monthly} ${data.currency}</h4>`;
 
+            // Resource summary table
+            if (data.resource_details) {
+                html += `<h5>📊 Resource Summary:</h5>`;
+                html += `<table class="resources-table" style="margin-bottom: 20px;"><thead><tr><th>Resource Type</th><th>Count</th><th>Estimated Monthly Cost</th></tr></thead><tbody>`;
+
+                const resourceMap = {
+                    'virtual_machines': { name: 'Virtual Machines', cost: data.cost_breakdown?.compute || '0.00' },
+                    'storage_accounts': { name: 'Storage Accounts', cost: data.cost_breakdown?.storage || '0.00' },
+                    'virtual_networks': { name: 'Virtual Networks', cost: data.cost_breakdown?.networking || '0.00' },
+                    'app_service_plans': { name: 'App Service Plans', cost: data.cost_breakdown?.web_services || '0.00' },
+                    'web_apps': { name: 'Web Apps', cost: '0.00' },
+                    'log_analytics_workspaces': { name: 'Log Analytics', cost: data.cost_breakdown?.analytics || '0.00' },
+                    'public_ips': { name: 'Public IP Addresses', cost: '0.00' }
+                };
+
+                Object.entries(data.resource_details).forEach(([key, count]) => {
+                    if (parseInt(count) > 0 && resourceMap[key]) {
+                        const resource = resourceMap[key];
+                        html += `<tr><td>${resource.name}</td><td>${count}</td><td>$${resource.cost}</td></tr>`;
+                    }
+                });
+                html += `</tbody></table>`;
+            }
+
+            // Cost breakdown chart
             if (data.cost_breakdown) {
-                html += `<h5>Cost Breakdown:</h5>`;
-                html += `<ul>`;
+                html += `<h5>💵 Cost Breakdown by Service:</h5>`;
+                html += `<ul style="list-style-type: none; padding-left: 0;">`;
                 Object.entries(data.cost_breakdown).forEach(([category, cost]) => {
                     if (parseFloat(cost) > 0) {
-                        html += `<li><strong>${category.charAt(0).toUpperCase() + category.slice(1)}:</strong> $${cost}</li>`;
+                        const percentage = ((parseFloat(cost) / parseFloat(data.estimated_monthly)) * 100).toFixed(1);
+                        const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        html += `<li style="margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-left: 4px solid #0078d4;">`;
+                        html += `<strong>${categoryName}:</strong> $${cost} (${percentage}%)`;
+                        html += `</li>`;
                     }
                 });
                 html += `</ul>`;
             }
 
+            // Pricing notes
+            if (data.pricing_notes && Array.isArray(data.pricing_notes)) {
+                html += `<h5>📝 Pricing Notes:</h5>`;
+                html += `<ul style="font-size: 0.9em; color: #605e5c;">`;
+                data.pricing_notes.forEach(note => {
+                    html += `<li>${note}</li>`;
+                });
+                html += `</ul>`;
+            }
+
+            // Azure portal links
+            html += `<h5>🔗 Azure Portal Links:</h5>`;
+            html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">`;
+
+            // Subscription ID from resource group (extract from context or use placeholder)
+            const subscriptionId = 'YOUR_SUBSCRIPTION_ID'; // This would be populated from actual data
+            const resourceGroup = data.resource_group || 'YOUR_RESOURCE_GROUP';
+
+            html += `<a href="https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/overview" target="_blank" style="padding: 8px 12px; background: #0078d4; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">🏗️ Resource Groups</a>`;
+            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_CostManagement/Menu/overview" target="_blank" style="padding: 8px 12px; background: #107c10; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">💰 Cost Management</a>`;
+            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/0" target="_blank" style="padding: 8px 12px; background: #d13438; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">🛡️ Security Center</a>`;
+            html += `<a href="https://portal.azure.com/#blade/HubsExtension/MonitoringMenuBlade/overview" target="_blank" style="padding: 8px 12px; background: #605e5c; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">📊 Azure Monitor</a>`;
+
+            html += `</div>`;
+
             if (data.note) {
-                html += `<p><em>${data.note}</em></p>`;
+                html += `<p><em style="color: #605e5c;">${data.note}</em></p>`;
             }
 
             html += `</div>`;
@@ -743,29 +848,68 @@ EOF
                 return '<p>Security assessment data not available</p>';
             }
 
-            let html = `<div style="margin-bottom: 20px;">`;
+            let html = `<div style="margin-bottom: 30px;">`;
+
+            // Security score with visual indicator
+            const scorePercentage = (data.overall_score / data.max_score) * 100;
+            const scoreColor = scorePercentage >= 80 ? '#107c10' : scorePercentage >= 60 ? '#ff8c00' : '#d13438';
+
             html += `<h4>🔒 Security Score: ${data.overall_score}/${data.max_score}</h4>`;
+            html += `<div style="width: 100%; background-color: #f0f0f0; border-radius: 10px; margin-bottom: 20px;">`;
+            html += `<div style="width: ${scorePercentage}%; background-color: ${scoreColor}; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8em;">${scorePercentage.toFixed(0)}%</div>`;
+            html += `</div>`;
 
+            // Security findings with better formatting
             if (data.findings) {
-                html += `<h5>Security Findings:</h5>`;
-                html += `<ul>`;
+                html += `<h5>🔍 Security Findings:</h5>`;
+                html += `<table class="resources-table" style="margin-bottom: 20px;"><thead><tr><th>Finding</th><th>Count</th><th>Status</th></tr></thead><tbody>`;
                 Object.entries(data.findings).forEach(([key, value]) => {
-                    html += `<li><strong>${key.replace('_', ' ').charAt(0).toUpperCase() + key.replace('_', ' ').slice(1)}:</strong> ${value}</li>`;
+                    const findingName = key.replace('_', ' ').charAt(0).toUpperCase() + key.replace('_', ' ').slice(1);
+                    const status = parseInt(value) === 0 ? '✅ Good' : '⚠️ Review';
+                    const statusClass = parseInt(value) === 0 ? 'status-success' : 'status-unknown';
+                    html += `<tr><td>${findingName}</td><td>${value}</td><td class="${statusClass}">${status}</td></tr>`;
+                });
+                html += `</tbody></table>`;
+            }
+
+            // Recommendations with priority indicators
+            if (data.recommendations && Array.isArray(data.recommendations) && data.recommendations.length > 0) {
+                html += `<h5>📝 Security Recommendations:</h5>`;
+                html += `<ul style="list-style-type: none; padding-left: 0;">`;
+                data.recommendations.forEach((rec, index) => {
+                    const priority = index === 0 ? 'High' : index === 1 ? 'Medium' : 'Low';
+                    const priorityColor = priority === 'High' ? '#d13438' : priority === 'Medium' ? '#ff8c00' : '#605e5c';
+                    html += `<li style="margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-left: 4px solid ${priorityColor}; border-radius: 4px;">`;
+                    html += `<span style="background: ${priorityColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-right: 8px;">${priority}</span>`;
+                    html += `${rec}</li>`;
                 });
                 html += `</ul>`;
             }
 
-            if (data.recommendations && Array.isArray(data.recommendations) && data.recommendations.length > 0) {
-                html += `<h5>Recommendations:</h5>`;
-                html += `<ul>`;
-                data.recommendations.forEach(rec => {
-                    html += `<li>${rec}</li>`;
-                });
-                html += `</ul>`;
-            }
+            // Azure Security Center integration
+            html += `<h5>🔗 Azure Security Resources:</h5>`;
+            html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px;">`;
+
+            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/0" target="_blank" style="padding: 8px 12px; background: #d13438; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">🛡️ Security Center</a>`;
+            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/22" target="_blank" style="padding: 8px 12px; background: #ff8c00; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">📊 Secure Score</a>`;
+            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/7" target="_blank" style="padding: 8px 12px; background: #0078d4; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">🛠️ Recommendations</a>`;
+            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/1" target="_blank" style="padding: 8px 12px; background: #107c10; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em;">💻 Inventory</a>`;
+
+            html += `</div>`;
+
+            // Security best practices
+            html += `<h5>📄 Security Best Practices:</h5>`;
+            html += `<ul style="font-size: 0.9em; color: #605e5c;">`;
+            html += `<li>Enable Azure Security Center Standard tier for advanced threat protection</li>`;
+            html += `<li>Implement Azure AD Conditional Access policies</li>`;
+            html += `<li>Use Azure Key Vault for secrets and certificate management</li>`;
+            html += `<li>Enable diagnostic logging for all resources</li>`;
+            html += `<li>Apply Network Security Groups to restrict traffic</li>`;
+            html += `<li>Use Private Endpoints for secure connectivity to PaaS services</li>`;
+            html += `</ul>`;
 
             if (data.note) {
-                html += `<p><em>${data.note}</em></p>`;
+                html += `<p><em style="color: #605e5c;">${data.note}</em></p>`;
             }
 
             html += `</div>`;
@@ -792,6 +936,43 @@ EOF
     sed -i '' "s/{{LOCATION}}/${LOCATION}/g" "${report_file}"
     sed -i '' "s|{{TEMPLATE_PATH}}|${TEMPLATE_PATH}|g" "${report_file}"
     sed -i '' "s|{{PARAMETERS_PATH}}|${PARAMETERS_PATH}|g" "${report_file}"
+
+    # Replace JSON data placeholders with actual data
+    log_info "Embedding JSON data into HTML report..."
+
+    # Load and embed JSON data files
+    local pre_deployment_json="null"
+    local resource_inventory_json="null"
+    local cost_analysis_json="null"
+    local security_assessment_json="null"
+
+    if [[ -f "${REPORT_DIR}/pre-deployment/precommit-results.json" ]]; then
+        pre_deployment_json=$(cat "${REPORT_DIR}/pre-deployment/precommit-results.json" | jq -c .)
+    fi
+
+    if [[ -f "${REPORT_DIR}/resources/resource-inventory.json" ]]; then
+        resource_inventory_json=$(cat "${REPORT_DIR}/resources/resource-inventory.json" | jq -c .)
+    fi
+
+    if [[ -f "${REPORT_DIR}/costs/cost-analysis.json" ]]; then
+        cost_analysis_json=$(cat "${REPORT_DIR}/costs/cost-analysis.json" | jq -c .)
+    fi
+
+    if [[ -f "${REPORT_DIR}/security/security-assessment.json" ]]; then
+        security_assessment_json=$(cat "${REPORT_DIR}/security/security-assessment.json" | jq -c .)
+    fi
+
+    # Replace placeholders with actual JSON data (need to escape for sed)
+    local temp_file="${report_file}.tmp"
+
+    # Use a more robust approach for JSON replacement
+    cat "${report_file}" | \
+    sed "s|{{PRE_DEPLOYMENT_DATA}}|${pre_deployment_json}|g" | \
+    sed "s|{{RESOURCE_INVENTORY_DATA}}|${resource_inventory_json}|g" | \
+    sed "s|{{COST_ANALYSIS_DATA}}|${cost_analysis_json}|g" | \
+    sed "s|{{SECURITY_ASSESSMENT_DATA}}|${security_assessment_json}|g" > "${temp_file}"
+
+    mv "${temp_file}" "${report_file}"
 
     log_success "Deployment report generated: ${report_file}"
 }

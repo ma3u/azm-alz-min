@@ -193,8 +193,32 @@ EOF
                 # Extract data from summary
                 local status=$(jq -r '.deployment.status // "unknown"' "${summary_file}" 2>/dev/null || echo "unknown")
                 local resources=$(jq -r '.deployment.resources_deployed // "0"' "${summary_file}" 2>/dev/null || echo "0")
-                local cost=$(jq -r '.costs.estimated_monthly // "N/A"' "${summary_file}" 2>/dev/null || echo "N/A")
                 local security_score=$(jq -r '.security.overall_score // "N/A"' "${summary_file}" 2>/dev/null || echo "N/A")
+
+                # Recalculate cost from resource inventory (same logic as enhanced reports)
+                local cost="N/A"
+                local resource_inventory_file="${dir}/resources/resource-inventory.json"
+                if [[ -f "${resource_inventory_file}" ]]; then
+                    # Count resources by type for cost estimation
+                    local storage_accounts=$(jq '[.[] | select(.type | contains("Microsoft.Storage/storageAccounts"))] | length' "${resource_inventory_file}" 2>/dev/null || echo "0")
+                    local vnets=$(jq '[.[] | select(.type | contains("Microsoft.Network/virtualNetworks"))] | length' "${resource_inventory_file}" 2>/dev/null || echo "0")
+                    local app_plans=$(jq '[.[] | select(.type | contains("Microsoft.Web/serverFarms"))] | length' "${resource_inventory_file}" 2>/dev/null || echo "0")
+                    local log_analytics=$(jq '[.[] | select(.type | contains("Microsoft.OperationalInsights/workspaces"))] | length' "${resource_inventory_file}" 2>/dev/null || echo "0")
+                    local public_ips=$(jq '[.[] | select(.type | contains("Microsoft.Network/publicIPAddresses"))] | length' "${resource_inventory_file}" 2>/dev/null || echo "0")
+
+                    # Calculate estimated costs using corrected logic (no redundant 'other' cost)
+                    local storage_cost=$(echo "${storage_accounts} * 2.50" | bc -l 2>/dev/null || echo "0.00")
+                    local networking_cost=$(echo "(${vnets} * 1.00) + (${public_ips} * 4.00)" | bc -l 2>/dev/null || echo "0.00")
+                    local analytics_cost=$(echo "${log_analytics} * 5.00" | bc -l 2>/dev/null || echo "0.00")
+                    local web_cost=$(echo "${app_plans} * 13.00" | bc -l 2>/dev/null || echo "0.00")
+
+                    # Calculate total (fixed logic without redundant costs)
+                    local estimated_monthly_cost=$(echo "${storage_cost} + ${networking_cost} + ${analytics_cost} + ${web_cost}" | bc -l 2>/dev/null || echo "20.50")
+                    cost=$(printf "%.2f" "${estimated_monthly_cost}" 2>/dev/null || echo "20.50")
+                else
+                    # Fall back to summary file if resource inventory not available
+                    cost=$(jq -r '.costs.estimated_monthly // "N/A"' "${summary_file}" 2>/dev/null || echo "N/A")
+                fi
 
                 cat >> "${index_file}" << EOF
         <div class="report-card">

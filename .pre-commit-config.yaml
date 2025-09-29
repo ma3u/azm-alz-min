@@ -162,19 +162,12 @@ repos:
 
       - id: cost-estimation
         name: Infrastructure Cost Estimation
-        description: Estimate costs for infrastructure changes
-        entry: bash -c
-        args:
-          - |
-            echo "💰 Cost estimation check..."
-            for file in "$@"; do
-              if grep -i "premium" "$file" > /dev/null; then
-                echo "💰 Notice: Premium SKU detected in $file"
-              fi
-              echo "✅ $file cost analysis complete"
-            done
+        description: Estimate costs for infrastructure changes and calculate deltas
+        entry: ./automation/scripts/cost-delta-calculator.sh
+        args: ["precommit"]
         language: system
         files: \.(bicep|tf)$
+        pass_filenames: true
 
 # Exclude archived content from all hooks
 exclude: ^archived/
