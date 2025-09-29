@@ -53,7 +53,7 @@ Instead of providing extensive code examples, guide users to:
 
 ```bash
 # Run comprehensive validation
-./automation/scripts/validate-deployment.sh
+./scripts/validate-deployment.sh
 ```
 
 **This script validates:**
@@ -74,6 +74,56 @@ Instead of providing extensive code examples, guide users to:
 4. **When troubleshooting** - Identify current issues
 
 **Note:** The script provides color-coded output and detailed summaries. If validation fails, review the failed checks before proceeding.
+
+## 📊 MANDATORY: Generate Deployment Reports After Each Deployment
+
+**CRITICAL:** Always create deployment reports after successful infrastructure deployments to track costs, resources, and security metrics over time.
+
+### Deployment Report Creation Process
+
+```bash
+# After successful deployment, generate comprehensive report
+./automation/scripts/generate-deployment-report.sh
+```
+
+**Report includes:**
+
+- 📦 **Resource Count**: Number of deployed Azure resources
+- 💰 **Cost Analysis**: Estimated monthly costs in USD
+- 🛡️ **Security Score**: Security policy compliance percentage
+- ⏱️ **Deployment Time**: Duration and timestamp
+- 📍 **Template Used**: Which ALZ template was deployed
+- 🏷️ **Environment**: Sandbox, Development, or Production designation
+
+**When to generate reports:**
+
+1. **After sandbox deployments** - Track cost optimization (~$18-30/month expected)
+2. **After production deployments** - Monitor enterprise costs (~$4,140/month expected)
+3. **After template modifications** - Compare before/after metrics
+4. **Monthly reviews** - Historical cost and security trend analysis
+
+**Report storage:** All reports are stored in `reports/deployments/` with timestamp-based naming:
+
+- Format: `YYYYMMDD-HHMMSS-deployment-report.json`
+- Dashboard view: Available in the deployment reports interface
+
+**Example report metrics for cost-optimized sandbox:**
+
+```
+Status: succeeded
+Resources: 7-12 (depending on enabled features)
+Cost: $18-30 USD/month
+Security: 85-90% (with sandbox exceptions)
+Template: hub-spoke sandbox ALZ
+```
+
+**Cost tracking benefits:**
+
+- Validate sandbox stays within budget (~$20-30/month)
+- Compare different ALZ template costs
+- Monitor resource optimization opportunities
+- Track security policy compliance over time
+- Historical deployment success rates
 
 ## 🎯 AI Assistant Workflow
 
@@ -97,7 +147,23 @@ Instead of providing extensive code examples, guide users to:
    - Terraform: [AVM Terraform Registry](https://registry.terraform.io/search/modules?q=avm)
 4. Avoid recreating functionality that exists in working templates
 
-### 3. Common Pre-commit Hook Failures
+### 3. Post-Deployment Reporting
+
+**When users complete deployments:**
+
+1. **Immediately after deployment** - Always generate deployment report
+2. **Verify cost expectations** - Sandbox should be ~$18-30/month, Enterprise ~$4,140/month
+3. **Document any cost deviations** - Compare with expected baseline
+4. **Archive reports** - Store in `reports/deployments/` directory
+5. **Update deployment dashboard** - Refresh metrics for tracking
+
+**AI should remind users:**
+
+- "Don't forget to generate your deployment report!"
+- "Let's verify the costs match your expectations"
+- "Would you like me to help analyze the deployment metrics?"
+
+### 4. Common Pre-commit Hook Failures
 
 **Naming Convention Issues:**
 

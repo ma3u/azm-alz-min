@@ -24,7 +24,10 @@
       "value": true
     },
     "enableContainerRegistry": {
-      "value": true
+      "value": false
+    },
+    "containerRegistrySku": {
+      "value": "Standard"
     }
   }
 }

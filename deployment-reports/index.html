@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Azure Landing Zone - Deployment Reports</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; margin: 40px; }
+        .header { background: linear-gradient(135deg, #0078d4, #00bcf2); color: white; padding: 20px; border-radius: 8px; margin-bottom: 30px; }
+        .report-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .report-card { border: 1px solid #ddd; border-radius: 8px; padding: 20px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .status-success { color: #107c10; }
+        .status-failed { color: #d13438; }
+        .status-unknown { color: #605e5c; }
+        .timestamp { font-size: 0.9em; color: #605e5c; }
+        .metric { display: inline-block; margin-right: 15px; padding: 5px 10px; background: #f3f2f1; border-radius: 4px; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🏗️ Azure Landing Zone Deployment Reports</h1>
+        <p>Deployment history and analysis for Azure Landing Zone infrastructure</p>
+    </div>
+    <div class="report-grid">
+        <div class="report-card">
+            <h3><a href="20250929-102931/deployment-report.html">20250929-102931</a></h3>
+            <div class="timestamp">2025-09-29 10:29:31</div>
+            <div style="margin: 15px 0;">
+                <span class="status-succeeded">Status: succeeded</span>
+            </div>
+            <div>
+                <span class="metric">📦 Resources: 7</span>
+                <span class="metric">💰 Cost: 108.50</span>
+                <span class="metric">🔒 Security: 85</span>
+            </div>
+        </div>
+        <div class="report-card">
+            <h3><a href="20250929-102749/deployment-report.html">20250929-102749</a></h3>
+            <div class="timestamp">2025-09-29 10:27:49</div>
+            <div style="margin: 15px 0;">
+                <span class="status-unknown">Status: unknown</span>
+            </div>
+            <div>
+                <span class="metric">📦 Resources: 0</span>
+                <span class="metric">💰 Cost: N/A</span>
+                <span class="metric">🔒 Security: N/A</span>
+            </div>
+        </div>
+        <div class="report-card">
+            <h3><a href="20250929-102543/deployment-report.html">20250929-102543</a></h3>
+            <div class="timestamp">2025-09-29 10:25:43</div>
+            <div style="margin: 15px 0;">
+                <span class="status-unknown">Status: unknown</span>
+            </div>
+            <div>
+                <span class="metric">📦 Resources: 0</span>
+                <span class="metric">💰 Cost: N/A</span>
+                <span class="metric">🔒 Security: N/A</span>
+            </div>
+        </div>
+        <div class="report-card">
+            <h3><a href="20250929-102508/deployment-report.html">20250929-102508</a></h3>
+            <div class="timestamp">2025-09-29 10:25:08</div>
+            <div style="margin: 15px 0;">
+                <span class="status-unknown">Status: unknown</span>
+            </div>
+            <div>
+                <span class="metric">📦 Resources: 0</span>
+                <span class="metric">💰 Cost: N/A</span>
+                <span class="metric">🔒 Security: N/A</span>
+            </div>
+        </div>
+        <div class="report-card">
+            <h3><a href="20250929-102422/deployment-report.html">20250929-102422</a></h3>
+            <div class="timestamp">2025-09-29 10:24:22</div>
+            <div style="margin: 15px 0;">
+                <span class="status-unknown">Status: unknown</span>
+            </div>
+            <div>
+                <span class="metric">📦 Resources: 0</span>
+                <span class="metric">💰 Cost: N/A</span>
+                <span class="metric">🔒 Security: N/A</span>
+            </div>
+        </div>
+    </div>
+</body></html>

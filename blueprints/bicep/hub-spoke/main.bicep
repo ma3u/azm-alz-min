@@ -32,6 +32,10 @@ param enableAppWorkloads bool = true
 @description('Enable Azure Container Registry in hub')
 param enableContainerRegistry bool = true
 
+@description('Container Registry SKU (Standard or Premium). Premium required for private endpoints but costs ~$150/month.')
+@allowed(['Standard', 'Premium'])
+param containerRegistrySku string = 'Standard'
+
 // =======================
 // CONTAINER SERVICES
 // =======================
@@ -45,15 +49,15 @@ module azureContainerRegistry 'br/public:avm/res/container-registry/registry:0.9
     location: location
     tags: commonTags
 
-    // Premium SKU required for vulnerability scanning and private endpoints
-    acrSku: 'Premium'
+    // SKU configurable via parameter (Standard for cost savings, Premium for private endpoints)
+    acrSku: containerRegistrySku
 
     // Security configurations
     acrAdminUserEnabled: false
-    networkRuleSetDefaultAction: 'Deny'
+    networkRuleSetDefaultAction: containerRegistrySku == 'Premium' ? 'Deny' : 'Allow'
 
-    // Network configuration with private endpoint
-    privateEndpoints: [
+    // Network configuration with private endpoint (only available with Premium SKU)
+    privateEndpoints: containerRegistrySku == 'Premium' ? [
       {
         subnetResourceId: '${hubVirtualNetwork.outputs.resourceId}/subnets/snet-acr-private-endpoints'
         privateDnsZoneGroup: {
@@ -66,11 +70,11 @@ module azureContainerRegistry 'br/public:avm/res/container-registry/registry:0.9
         }
         service: 'registry'
       }
-    ]
+    ] : []
 
-    // Soft delete policy (replaces retention policy)
-    softDeletePolicyDays: 30
-    softDeletePolicyStatus: 'enabled'
+    // Soft delete policy disabled due to compatibility issues
+    softDeletePolicyDays: 7
+    softDeletePolicyStatus: 'disabled'
 
     // System-assigned managed identity
     managedIdentities: {
@@ -97,8 +101,8 @@ module azureContainerRegistry 'br/public:avm/res/container-registry/registry:0.9
   }
 }
 
-// Private DNS Zone for ACR
-module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.2.4' = if (enableContainerRegistry) {
+// Private DNS Zone for ACR (only needed with Premium SKU)
+module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.2.4' = if (enableContainerRegistry && containerRegistrySku == 'Premium') {
   name: 'privateDnsZoneAcrDeployment'
   scope: hubResourceGroup
   params: {

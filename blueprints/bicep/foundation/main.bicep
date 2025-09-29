@@ -59,7 +59,7 @@ var commonTags = {
 }
 
 var resourceGroupName = 'rg-${workloadName}-${environment}'
-var keyVaultName = '${keyVaultNamePrefix}-${environment}-${take(uniqueString(subscription().subscriptionId), 8)}'
+var keyVaultName = '${keyVaultNamePrefix}-${take(uniqueString(subscription().subscriptionId), 8)}'
 var virtualNetworkName = 'vnet-${workloadName}-${environment}'
 
 // =======================
@@ -145,7 +145,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled)
     // Security configuration
     enableRbacAuthorization: true
     enableSoftDelete: true
-    enablePurgeProtection: false // Disabled for sandbox to allow cleanup
+    enablePurgeProtection: true // Required by policy
     softDeleteRetentionInDays: 7 // Minimum for sandbox
     sku: 'standard' // Standard SKU for sandbox testing
 
@@ -251,7 +251,7 @@ output testingInstructions object = {
   keyVaultTesting: keyVaultEnabled ? {
     testSecretCommand: 'az keyvault secret show --vault-name ${keyVault.outputs.name} --name sandbox-test-secret' // pragma: allowlist secret
     setSecretCommand: 'az keyvault secret set --vault-name ${keyVault.outputs.name} --name test-secret --value "test-value"' // pragma: allowlist secret
-    listSecretsCommand: 'az keyvault secret list --vault-name ${keyVault.outputs.name}'
+    listSecretsCommand: 'az keyvault secret list --vault-name ${keyVault.outputs.name}' // pragma: allowlist secret
     testSecretResourceId: testSecret.outputs.resourceId
   } : {}
   networkTesting: virtualNetworkEnabled ? {

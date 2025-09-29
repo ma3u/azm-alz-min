@@ -50,8 +50,43 @@ az deployment sub create \
   --name "alz-sandbox-$(date +%Y%m%d-%H%M%S)"
 ```
 
-**Cost:** ~$18/month sandbox environment
+**Cost:** ~$25/month sandbox environment (Standard Container Registry)
 **Result:** Complete hub-spoke ALZ with security compliance
+
+### 📊 Deploy with Comprehensive Reporting (Recommended)
+
+**For detailed deployment insights and monitoring:**
+
+```bash
+# Deploy with full reporting, cost analysis, and security assessment
+./automation/scripts/deploy-with-report.sh
+
+# Or specify custom template
+./automation/scripts/deploy-with-report.sh \
+  blueprints/bicep/hub-spoke/main.bicep \
+  blueprints/bicep/hub-spoke/main.parameters.json
+```
+
+**What you get:**
+
+- 📋 **Pre-deployment validation** (prerequisites, pre-commit checks)
+- 🏗️ **Automated deployment** with full error handling
+- 📊 **Resource inventory** across all resource groups
+- 💰 **Cost analysis** with service breakdown
+- 🔒 **Security assessment** with recommendations
+- 📈 **HTML/JSON reports** for sharing and audit trails
+- 🔄 **Report history management** (keeps last 5 deployments)
+
+![Deployment Report Example](docs/images/deployment-report-example.png)
+
+**Report includes:**
+
+- ✅ Deployment status and timing
+- 📦 Complete resource inventory by type and location
+- 💰 Monthly cost estimates with service breakdown
+- 🔒 Security score (0-100) with findings and recommendations
+- 🧪 Testing commands for validation
+- 🧹 Cleanup commands for resource removal
 
 ### 📖 Learn First (Recommended)
 
@@ -96,6 +131,7 @@ pip install pre-commit && pre-commit install
 - [🏗️ Terraform Deployment Guide](documentation/content/terraform-deployment-guide.md) - Terraform-specific procedures
 - [🔄 Terraform CI/CD Guide](documentation/content/terraform-cicd-guide.md) - GitHub Actions automation
 - [📖 AVM Modules Guide](documentation/content/avm-modules-guide.md) - AVM reference and best practices
+- [📊 Deployment Reporting Guide](documentation/content/deployment-reporting-guide.md) - Comprehensive deployment insights
 
 ### 🏭 Enterprise Integration
 
