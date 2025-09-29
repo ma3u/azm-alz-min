@@ -1,0 +1,147 @@
+name: Deploy Deployment Reports to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'deployment-reports/**'
+      - '.github/workflows/deploy-reports-to-pages.yml'
+  workflow_dispatch:
+    inputs:
+      force_deploy:
+        description: 'Force deployment even if no reports changed'
+        required: false
+        default: 'false'
+
+# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # Build job
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check if deployment-reports exists
+        id: check_reports
+        run: |
+          if [ -d "deployment-reports" ] && [ -f "deployment-reports/index.html" ]; then
+            echo "reports_exist=true" >> $GITHUB_OUTPUT
+            echo "✅ Deployment reports found"
+          else
+            echo "reports_exist=false" >> $GITHUB_OUTPUT
+            echo "❌ No deployment reports found"
+          fi
+
+      - name: Setup Pages
+        if: steps.check_reports.outputs.reports_exist == 'true'
+        uses: actions/configure-pages@v5
+
+      - name: Prepare deployment directory
+        if: steps.check_reports.outputs.reports_exist == 'true'
+        run: |
+          echo "📦 Preparing deployment directory..."
+          mkdir -p _site
+
+          # Copy all deployment reports
+          cp -r deployment-reports/* _site/
+
+          # Create a root index.html that redirects to the latest report
+          cat > _site/root-index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Azure Landing Zone - Deployment Reports</title>
+              <meta http-equiv="refresh" content="0; url=./index.html">
+              <style>
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                      text-align: center;
+                      padding: 50px;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      color: white;
+                      min-height: 100vh;
+                      display: flex;
+                      flex-direction: column;
+                      justify-content: center;
+                  }
+                  .container {
+                      max-width: 600px;
+                      margin: 0 auto;
+                      padding: 40px;
+                      background: rgba(255, 255, 255, 0.1);
+                      border-radius: 20px;
+                      backdrop-filter: blur(10px);
+                  }
+                  h1 { margin-bottom: 20px; font-size: 2.5em; }
+                  p { font-size: 1.2em; margin-bottom: 30px; }
+                  .button {
+                      display: inline-block;
+                      padding: 15px 30px;
+                      background: #4CAF50;
+                      color: white;
+                      text-decoration: none;
+                      border-radius: 25px;
+                      font-weight: bold;
+                      transition: all 0.3s ease;
+                  }
+                  .button:hover { background: #45a049; transform: translateY(-2px); }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <h1>🚀 Azure Landing Zone</h1>
+                  <h2>📊 Deployment Reports Dashboard</h2>
+                  <p>Redirecting to the latest deployment report...</p>
+                  <a href="./index.html" class="button">View Reports Dashboard</a>
+              </div>
+          </body>
+          </html>
+          EOF
+
+          echo "📋 Contents of deployment directory:"
+          find _site -type f | head -20
+
+      - name: Upload artifact
+        if: steps.check_reports.outputs.reports_exist == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+      - name: Skip deployment - no reports
+        if: steps.check_reports.outputs.reports_exist == 'false'
+        run: |
+          echo "⚠️ Skipping deployment: No deployment reports found"
+          echo "To generate reports, run: ./automation/scripts/deploy-with-report.sh"
+
+  # Deployment job
+  deploy:
+    needs: build
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    if: needs.build.outputs.reports_exist != 'false'
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Success notification
+        run: |
+          echo "🎉 Deployment successful!"
+          echo "📊 Reports available at: ${{ steps.deployment.outputs.page_url }}"
+          echo "🔗 Direct link: ${{ steps.deployment.outputs.page_url }}index.html"

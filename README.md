@@ -79,13 +79,16 @@ az deployment sub create \
 - 📈 **HTML/JSON reports** for sharing and audit trails
 - 🔄 **Report history management** (keeps last 5 deployments)
 
-**📊 [View Deployment Reports Dashboard](deployment-reports/index.html)**
+**📊 [View Live Deployment Reports Dashboard](https://ma3u.github.io/azm-alz-min/)**
 
-> **💡 Viewing HTML Reports**: Since GitHub doesn't render HTML files directly, you have three options:
+> **🌐 Live Dashboard**: Deployment reports are automatically published to GitHub Pages for easy sharing and viewing. The dashboard updates automatically when new reports are generated.
 >
-> 1. **Local viewing**: `open deployment-reports/index.html` (opens in your browser)
-> 2. **Local server**: `cd deployment-reports && python3 -m http.server 8000` then visit `http://localhost:8000`
-> 3. **GitHub Pages**: Enable Pages in repository settings to share reports online
+> **💡 Alternative Viewing Methods**:
+>
+> 1. **GitHub Pages**: https://ma3u.github.io/azm-alz-min/ (recommended - always up to date)
+> 2. **Local viewing**: `open deployment-reports/index.html` (opens in your browser)
+> 3. **Local server**: `cd deployment-reports && python3 -m http.server 8000` then visit `http://localhost:8000`
+> 4. **GitHub Pages**: Enable Pages in repository settings to share reports online
 
 **Report includes:**
 
@@ -97,6 +100,27 @@ az deployment sub create \
 - 🧹 Cleanup commands for resource removal
 - 📈 Interactive charts and dashboards
 - 📋 Historical deployment tracking
+
+### 🌐 Automated GitHub Pages Deployment
+
+**Deploy reports to GitHub Pages automatically:**
+
+```bash
+# Deploy current reports to GitHub Pages (automated)
+./automation/scripts/deploy-reports-to-pages.sh
+
+# Check deployment status
+./automation/scripts/deploy-reports-to-pages.sh --status
+
+# Just check configuration
+./automation/scripts/deploy-reports-to-pages.sh --check
+```
+
+**Auto-deployment triggers:**
+
+- 🔄 **Automatic**: Every push to `main` branch with updated `deployment-reports/`
+- 🔘 **Manual**: Run the deployment script or trigger GitHub Actions workflow
+- 📊 **Live Updates**: Reports are automatically published to GitHub Pages within minutes
 
 ### 📖 Learn First (Recommended)
 
