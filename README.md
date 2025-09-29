@@ -1,6 +1,6 @@
 # AI-Powered GitOps for Azure Landing Zones with Azure Verified Modules
 
-[![Build Status](https://dev.azure.com/your-org/your-project/_apis/build/status/azure-landingzone?branchName=main)](https://dev.azure.com/your-org/your-project/_build/latest?definitionId=YOUR_BUILD_ID&branchName=main)
+[![Build Status](https://github.com/ma3u/azm-alz-min/actions/workflows/azure-landing-zone-cicd.yml/badge.svg)](https://github.com/ma3u/azm-alz-min/actions/workflows/azure-landing-zone-cicd.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Azure Verified Modules](https://img.shields.io/badge/AVM-Verified-blue.svg)](https://azure.github.io/Azure-Verified-Modules/)
 
@@ -77,7 +77,7 @@ az deployment sub create \
 - 📈 **HTML/JSON reports** for sharing and audit trails
 - 🔄 **Report history management** (keeps last 5 deployments)
 
-![Deployment Report Example](docs/images/deployment-report-example.png)
+**📊 [View Deployment Report Example](docs/images/deployment-report-example.md)**
 
 **Report includes:**
 
@@ -92,17 +92,17 @@ az deployment sub create \
 
 **New to Azure Landing Zones?** Start here:
 
-- [Azure Sandbox Policies Overview](documentation/content/azure-sandbox-policies-overview.md) - Understand the rules and requirements
-- [AVM Deployment Guide](documentation/content/avm-deployment-guide.md) - Complete deployment walkthrough
-- [Pre-commit Errors Analysis](documentation/content/pre-commit-errors-analysis.md) - Fix common issues
+- [Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md) - Understand the rules and requirements
+- [AVM Deployment Guide](docs/avm-deployment-guide.md) - Complete deployment walkthrough
+- [Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) - Fix common issues
 
 ### 🔧 Developer Setup
 
 **Setting up for contribution:**
 
 ```bash
-git clone https://github.com/yourusername/azure-landingzone.git
-cd azure-landingzone
+git clone https://github.com/ma3u/azm-alz-min.git
+cd azm-alz-min
 pip install pre-commit && pre-commit install
 
 # Run comprehensive validation
@@ -121,17 +121,17 @@ pip install pre-commit && pre-commit install
 
 ### 🎯 Essential Getting Started
 
-- [📋 Azure Sandbox Policies Overview](documentation/content/azure-sandbox-policies-overview.md) - **Main policy reference and rules**
-- [⚡ AVM Deployment Guide](documentation/content/avm-deployment-guide.md) - **Primary deployment walkthrough**
-- [🔍 Pre-commit Errors Analysis](documentation/content/pre-commit-errors-analysis.md) - **Fix common issues**
+- [📋 Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md) - **Main policy reference and rules**
+- [⚡ AVM Deployment Guide](docs/avm-deployment-guide.md) - **Primary deployment walkthrough**
+- [🔍 Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) - **Fix common issues**
 
 ### 🔧 Development & Quality
 
-- [🛠️ Pre-commit Hooks Guide](documentation/content/pre-commit-hooks-guide.md) - Code quality automation
-- [🏗️ Terraform Deployment Guide](documentation/content/terraform-deployment-guide.md) - Terraform-specific procedures
-- [🔄 Terraform CI/CD Guide](documentation/content/terraform-cicd-guide.md) - GitHub Actions automation
-- [📖 AVM Modules Guide](documentation/content/avm-modules-guide.md) - AVM reference and best practices
-- [📊 Deployment Reporting Guide](documentation/content/deployment-reporting-guide.md) - Comprehensive deployment insights
+- [🛠️ Pre-commit Hooks Guide](docs/pre-commit-hooks-guide.md) - Code quality automation
+- [🏗️ Terraform Deployment Guide](docs/terraform-deployment-guide.md) - Terraform-specific procedures
+- [🔄 Terraform CI/CD Guide](docs/terraform-cicd-guide.md) - GitHub Actions automation
+- [📚 AVM Modules Guide](docs/avm-modules-guide.md) - AVM reference and best practices
+- [📊 Deployment Reporting Guide](docs/deployment-reporting-guide.md) - Comprehensive deployment insights
 
 ### 🏭 Enterprise Integration
 
