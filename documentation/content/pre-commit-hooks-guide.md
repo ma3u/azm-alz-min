@@ -190,5 +190,5 @@ properties: {
 
 ---
 
-**Last Updated:** 2025-09-28  
+**Last Updated:** 2025-09-28
 **Purpose:** Essential pre-commit hooks setup and troubleshooting for Azure Landing Zone development

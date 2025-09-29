@@ -121,9 +121,9 @@ print_status "Validating Bicep templates..."
 
 # Working templates
 BICEP_TEMPLATES=(
-    "infra/bicep/sandbox/main.bicep"
-    "infra/accelerator/simple-sandbox.bicep"
-    "sandbox/main.bicep"
+    "blueprints/bicep/foundation/main.bicep"
+    "blueprints/bicep/hub-spoke/main.bicep"
+    "blueprints/bicep/foundation/advanced.bicep"
 )
 
 for template in "${BICEP_TEMPLATES[@]}"; do
@@ -140,8 +140,7 @@ print_separator
 print_status "Validating Terraform templates..."
 
 TERRAFORM_DIRS=(
-    "infra/terraform/simple-sandbox"
-    "sandbox"
+    "blueprints/terraform/foundation"
 )
 
 for tf_dir in "${TERRAFORM_DIRS[@]}"; do
@@ -208,7 +207,7 @@ PRECOMMIT_HOOKS=(
     "check-yaml"
     "check-json"
     "bicep-lint"
-    "terraform_validate"
+    "terraform-fmt"
 )
 
 for hook in "${PRECOMMIT_HOOKS[@]}"; do
@@ -223,10 +222,10 @@ print_status "Checking template consistency..."
 print_status "Verifying working templates exist..."
 
 WORKING_TEMPLATES=(
-    "infra/bicep/sandbox/main.bicep:✅ Primary sandbox template"
-    "infra/terraform/simple-sandbox/main.tf:✅ Terraform equivalent"
-    "infra/accelerator/simple-sandbox.bicep:✅ Quick demo"
-    "sandbox/main.bicep:✅ Basic test template"
+    "blueprints/bicep/foundation/main.bicep:✅ Foundation template"
+    "blueprints/terraform/foundation/main.tf:✅ Terraform equivalent"
+    "blueprints/bicep/hub-spoke/main.bicep:✅ Hub-spoke template"
+    "blueprints/bicep/foundation/advanced.bicep:✅ Advanced foundation"
 )
 
 for template_info in "${WORKING_TEMPLATES[@]}"; do

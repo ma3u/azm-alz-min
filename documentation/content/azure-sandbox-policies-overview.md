@@ -1,6 +1,6 @@
 # Azure Sandbox Deployment Policies & Rules Overview
 
-**Last Updated:** 2025-09-28  
+**Last Updated:** 2025-09-28
 **Status:** ✅ **Active** - Production-ready policies with 89% compliance
 
 ## 🎯 Purpose

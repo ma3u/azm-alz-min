@@ -208,5 +208,5 @@ az role assignment list --assignee $(az ad signed-in-user show --query id -o tsv
 
 ---
 
-**Last Updated:** 2025-09-28  
+**Last Updated:** 2025-09-28
 **Purpose:** Essential Azure Landing Zone deployment using Azure Verified Modules

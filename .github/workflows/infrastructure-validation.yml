@@ -176,7 +176,7 @@ jobs:
           echo "📊 Running What-If analysis for main branch..."
 
           # Only run What-If for main deployment templates
-          main_templates=$(find . -path "*/infra/accelerator/*.bicep" -type f)
+          main_templates=$(find . -path "*/blueprints/bicep/*/*.bicep" -type f)
 
           for template in $main_templates; do
             param_file="${template%.bicep}.parameters.json"

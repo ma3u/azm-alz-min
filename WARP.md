@@ -17,25 +17,25 @@ Warp AI should help users successfully run pre-commit hooks and follow establish
 - Correcting Bicep/Terraform syntax errors
 - Guiding AVM module usage
 
-**Reference:** [Pre-commit Hooks Guide](docs/pre-commit-hooks-guide.md)
+**Reference:** [Pre-commit Hooks Guide](documentation/content/pre-commit-hooks-guide.md)
 
 ### Rule #2: Use Existing Working Templates
 
 **Recommended templates (in priority order):**
 
-1. `infra/accelerator/simple-sandbox.bicep` - Battle-tested sandbox ALZ
-2. `infra/accelerator/alz-subscription-vending-corrected.bicep` - Enterprise ALZ
-3. `infra/terraform/simple-sandbox/` - Terraform alternative
+1. `blueprints/bicep/hub-spoke/main.bicep` - Battle-tested sandbox ALZ (formerly simple-sandbox.bicep)
+2. `blueprints/bicep/foundation/main.bicep` - Basic foundation ALZ
+3. `blueprints/terraform/foundation/` - Terraform alternative
 
-**Reference:** [AVM Deployment Guide](docs/avm-deployment-guide.md)
+**Reference:** [AVM Deployment Guide](documentation/content/avm-deployment-guide.md)
 
 ### Rule #3: Reference Documentation, Don't Duplicate
 
 Instead of providing extensive code examples, guide users to:
 
-- [Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md) - Policy rules
-- [Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) - Common fixes
-- [AVM Modules Guide](docs/avm-modules-guide.md) - Module usage
+- [Azure Sandbox Policies Overview](documentation/content/azure-sandbox-policies-overview.md) - Policy rules
+- [Pre-commit Errors Analysis](documentation/content/pre-commit-errors-analysis.md) - Common fixes
+- [AVM Modules Guide](documentation/content/avm-modules-guide.md) - Module usage
 
 ### Rule #4: Tool Version Awareness
 
@@ -53,7 +53,7 @@ Instead of providing extensive code examples, guide users to:
 
 ```bash
 # Run comprehensive validation
-./scripts/validate-deployment.sh
+./automation/scripts/validate-deployment.sh
 ```
 
 **This script validates:**
@@ -82,7 +82,7 @@ Instead of providing extensive code examples, guide users to:
 **When users report pre-commit failures:**
 
 1. Identify the specific hook that failed
-2. Reference [Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) for solutions
+2. Reference [Pre-commit Errors Analysis](documentation/content/pre-commit-errors-analysis.md) for solutions
 3. Provide **minimal** fix commands (not extensive explanations)
 4. Guide to relevant documentation section
 
@@ -91,7 +91,7 @@ Instead of providing extensive code examples, guide users to:
 **When users want to create/modify templates:**
 
 1. Check if existing template suits their needs
-2. Reference [AVM Modules Guide](docs/avm-modules-guide.md) for module selection
+2. Reference [AVM Modules Guide](documentation/content/avm-modules-guide.md) for module selection
 3. Guide to official AVM registries for latest versions:
    - Bicep: [AVM Bicep Registry](https://github.com/Azure/bicep-registry-modules)
    - Terraform: [AVM Terraform Registry](https://registry.terraform.io/search/modules?q=avm)
@@ -101,23 +101,23 @@ Instead of providing extensive code examples, guide users to:
 
 **Naming Convention Issues:**
 
-- Fix with: Reference [Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md)
+- Fix with: Reference [Azure Sandbox Policies Overview](documentation/content/azure-sandbox-policies-overview.md)
 - Key rule: Use `lower()` for storage accounts and container registries
 
 **Security Policy Violations:**
 
-- Fix with: Check [Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md)
+- Fix with: Check [Pre-commit Errors Analysis](documentation/content/pre-commit-errors-analysis.md)
 - Common: Missing HTTPS enforcement, public access enabled
 
 **Terraform Validation:**
 
 - Use `terraform1.9 validate` (not `terraform`)
-- Reference: [Terraform Deployment Guide](docs/terraform-deployment-guide.md)
+- Reference: [Terraform Deployment Guide](documentation/content/terraform-deployment-guide.md)
 
 **Bicep Compilation:**
 
 - Use `az bicep build --file template.bicep`
-- Reference: [AVM Deployment Guide](docs/avm-deployment-guide.md)
+- Reference: [AVM Deployment Guide](documentation/content/avm-deployment-guide.md)
 
 ## 🛠️ Essential Tool Commands
 
@@ -157,15 +157,15 @@ az rest --method GET --url "https://mcr.microsoft.com/v2/bicep/avm/res/SERVICE/R
 
 **Pre-commit Hook Support:**
 
-- [Pre-commit Hooks Guide](docs/pre-commit-hooks-guide.md) - Complete hook documentation
-- [Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) - Common failures and fixes
-- [Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md) - Policy requirements
+- [Pre-commit Hooks Guide](documentation/content/pre-commit-hooks-guide.md) - Complete hook documentation
+- [Pre-commit Errors Analysis](documentation/content/pre-commit-errors-analysis.md) - Common failures and fixes
+- [Azure Sandbox Policies Overview](documentation/content/azure-sandbox-policies-overview.md) - Policy requirements
 
 **Template Development:**
 
-- [AVM Deployment Guide](docs/avm-deployment-guide.md) - Azure Verified Modules usage
-- [AVM Modules Guide](docs/avm-modules-guide.md) - Module selection and best practices
-- [Terraform Deployment Guide](docs/terraform-deployment-guide.md) - Terraform-specific guidance
+- [AVM Deployment Guide](documentation/content/avm-deployment-guide.md) - Azure Verified Modules usage
+- [AVM Modules Guide](documentation/content/avm-modules-guide.md) - Module selection and best practices
+- [Terraform Deployment Guide](documentation/content/terraform-deployment-guide.md) - Terraform-specific guidance
 
 **Official Azure Documentation:**
 
@@ -177,5 +177,5 @@ az rest --method GET --url "https://mcr.microsoft.com/v2/bicep/avm/res/SERVICE/R
 
 ---
 
-**Last Updated:** 2025-09-28  
+**Last Updated:** 2025-09-28
 **Purpose:** Warp AI guidance for pre-commit hook support and template development

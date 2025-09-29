@@ -233,7 +233,7 @@ The workflow creates detailed summaries:
 ## 🎉 Deployment Summary
 
 **Environment:** sandbox
-**Terraform Version:** 1.9.8  
+**Terraform Version:** 1.9.8
 **Deployment Time:** 2025-09-26 21:45:00 UTC
 
 ### 📋 Resources Deployed

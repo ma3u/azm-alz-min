@@ -45,21 +45,21 @@ az login
 az account set --subscription "your-subscription-id"
 az deployment sub create \
   --location "westeurope" \
-  --template-file infra/accelerator/simple-sandbox.bicep \
-  --parameters infra/accelerator/simple-sandbox.parameters.json \
+  --template-file blueprints/bicep/hub-spoke/main.bicep \
+  --parameters blueprints/bicep/hub-spoke/main.parameters.json \
   --name "alz-sandbox-$(date +%Y%m%d-%H%M%S)"
 ```
 
-**Cost:** ~$18/month sandbox environment  
+**Cost:** ~$18/month sandbox environment
 **Result:** Complete hub-spoke ALZ with security compliance
 
 ### 📖 Learn First (Recommended)
 
 **New to Azure Landing Zones?** Start here:
 
-- [Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md) - Understand the rules and requirements
-- [AVM Deployment Guide](docs/avm-deployment-guide.md) - Complete deployment walkthrough
-- [Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) - Fix common issues
+- [Azure Sandbox Policies Overview](documentation/content/azure-sandbox-policies-overview.md) - Understand the rules and requirements
+- [AVM Deployment Guide](documentation/content/avm-deployment-guide.md) - Complete deployment walkthrough
+- [Pre-commit Errors Analysis](documentation/content/pre-commit-errors-analysis.md) - Fix common issues
 
 ### 🔧 Developer Setup
 
@@ -71,7 +71,7 @@ cd azure-landingzone
 pip install pre-commit && pre-commit install
 
 # Run comprehensive validation
-./scripts/validate-deployment.sh
+./automation/scripts/validate-deployment.sh
 ```
 
 **The validation script checks:** Prerequisites, template compilation, AVM modules, pre-commit hooks, and security configuration.
@@ -86,16 +86,16 @@ pip install pre-commit && pre-commit install
 
 ### 🎯 Essential Getting Started
 
-- [📋 Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md) - **Main policy reference and rules**
-- [⚡ AVM Deployment Guide](docs/avm-deployment-guide.md) - **Primary deployment walkthrough**
-- [🔍 Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) - **Fix common issues**
+- [📋 Azure Sandbox Policies Overview](documentation/content/azure-sandbox-policies-overview.md) - **Main policy reference and rules**
+- [⚡ AVM Deployment Guide](documentation/content/avm-deployment-guide.md) - **Primary deployment walkthrough**
+- [🔍 Pre-commit Errors Analysis](documentation/content/pre-commit-errors-analysis.md) - **Fix common issues**
 
 ### 🔧 Development & Quality
 
-- [🛠️ Pre-commit Hooks Guide](docs/pre-commit-hooks-guide.md) - Code quality automation
-- [🏗️ Terraform Deployment Guide](docs/terraform-deployment-guide.md) - Terraform-specific procedures
-- [🔄 Terraform CI/CD Guide](docs/terraform-cicd-guide.md) - GitHub Actions automation
-- [📖 AVM Modules Guide](docs/avm-modules-guide.md) - AVM reference and best practices
+- [🛠️ Pre-commit Hooks Guide](documentation/content/pre-commit-hooks-guide.md) - Code quality automation
+- [🏗️ Terraform Deployment Guide](documentation/content/terraform-deployment-guide.md) - Terraform-specific procedures
+- [🔄 Terraform CI/CD Guide](documentation/content/terraform-cicd-guide.md) - GitHub Actions automation
+- [📖 AVM Modules Guide](documentation/content/avm-modules-guide.md) - AVM reference and best practices
 
 ### 🏭 Enterprise Integration
 
@@ -161,11 +161,11 @@ az rest --method GET --url "https://mcr.microsoft.com/v2/bicep/avm/res/{service}
 
 ### 🎯 Template Priority (Use These)
 
-| Priority | Template                                                     | Status         | Use Case       |
-| -------- | ------------------------------------------------------------ | -------------- | -------------- |
-| **1st**  | `infra/accelerator/simple-sandbox.bicep`                     | ✅ **WORKING** | Sandbox ALZ    |
-| **2nd**  | `infra/accelerator/alz-subscription-vending-corrected.bicep` | ✅ **WORKING** | Enterprise ALZ |
-| **3rd**  | `infra/terraform/simple-sandbox/`                            | ✅ **WORKING** | Terraform ALZ  |
+| Priority | Template                                | Status                                   | Use Case       |
+| -------- | --------------------------------------- | ---------------------------------------- | -------------- | ------------- |
+| **1st**  | `blueprints/bicep/hub-spoke/main.bicep` | ✅ **WORKING**                           | Hub-Spoke ALZ  |
+|          | **2nd**                                 | `blueprints/bicep/foundation/main.bicep` | ✅ **WORKING** | Basic ALZ     |
+|          | **3rd**                                 | `blueprints/terraform/foundation/`       | ✅ **WORKING** | Terraform ALZ |
 
 ### 📚 Development Rules
 
@@ -224,8 +224,8 @@ azure-landingzone/
 
 ### 🎯 Architecture Patterns
 
-**Sandbox Pattern:** Single subscription, hub-spoke networking, cost-optimized  
-**Enterprise Pattern:** Management groups, subscription vending, full compliance  
+**Sandbox Pattern:** Single subscription, hub-spoke networking, cost-optimized
+**Enterprise Pattern:** Management groups, subscription vending, full compliance
 **Security Framework:** Zero Trust Level 1 with progression roadmap
 
 ---
@@ -394,7 +394,7 @@ Special thanks to:
 
 ---
 
-**📝 Article:** [AI-Powered GitOps for Azure Landing Zones](https://www.linkedin.com/pulse/ai-powered-gitops-azure-landing-zones-verified-matthias-buchhorn-roth-hqlke/?trackingId=28d0MXV%2Bux4OpZszqzWQxw%3D%3D)  
-**🏗️ AVM Version:** 0.4.0+  
-**📅 Last Updated:** 2025-09-28  
+**📝 Article:** [AI-Powered GitOps for Azure Landing Zones](https://www.linkedin.com/pulse/ai-powered-gitops-azure-landing-zones-verified-matthias-buchhorn-roth-hqlke/?trackingId=28d0MXV%2Bux4OpZszqzWQxw%3D%3D)
+**🏗️ AVM Version:** 0.4.0+
+**📅 Last Updated:** 2025-09-28
 **👨‍💻 Author:** Matthias Buchhorn-Roth

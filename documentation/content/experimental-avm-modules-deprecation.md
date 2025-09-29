@@ -1,6 +1,6 @@
 # Experimental AVM Modules Deprecation Guide
 
-**Generated**: 2025-09-27T09:46:41Z  
+**Generated**: 2025-09-27T09:46:41Z
 **Status**: 🟡 **MIXED TEMPLATE STRATEGY** - Focus on working templates, document broken ones
 
 ## 🎯 Executive Summary
@@ -333,6 +333,6 @@ module landingZone 'br/public:avm/ptn/lz/enterprise-scale:0.1.0' = {
 
 ---
 
-**Last Updated**: 2025-09-27T09:46:41Z  
-**Next Review**: AVM module releases (monthly)  
+**Last Updated**: 2025-09-27T09:46:41Z
+**Next Review**: AVM module releases (monthly)
 **Status**: ✅ **STRATEGY IMPLEMENTED** - Focus on 4 working templates, deprecate 5+ broken ones
