@@ -47,6 +47,9 @@ jobs:
       - name: Setup Pages
         if: steps.check_reports.outputs.reports_exist == 'true'
         uses: actions/configure-pages@v5
+        with:
+          # Enable Pages if not already configured
+          enablement: true
 
       - name: Prepare deployment directory
         if: steps.check_reports.outputs.reports_exist == 'true'
