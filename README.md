@@ -405,11 +405,6 @@ We welcome contributions! Please follow our development workflow:
 - [🔒 ACR Vulnerability Scanning Guide](docs/acr-vulnerability-scanning-guide.md) - Container security
 - [🛡️ Zero Trust Maturity Roadmap](docs/zero-trust-maturity-roadmap.md) - Security progression
 
-### 🤖 AI-Powered Development
-
-- [🤖 AI-Powered GitOps Article](docs/ai-powered-gitops-article.md) - AI methodology
-- [WARP.md](WARP.md) - AI development guidance with policy rules
-
 ---
 
 ## 📄 License
