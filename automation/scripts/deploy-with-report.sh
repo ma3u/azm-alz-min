@@ -595,10 +595,182 @@ EOF
     </div>
 
     <script>
-        // This would be populated with actual data in a real implementation
-        document.addEventListener('DOMContentLoaded', function() {
-            // Placeholder for dynamic content loading
+        document.addEventListener('DOMContentLoaded', async function() {
+            // Load and display JSON data files
+            await loadReportData();
         });
+
+        async function loadReportData() {
+            try {
+                // Load pre-deployment checks
+                await loadPreDeploymentChecks();
+
+                // Load resource inventory
+                await loadResourceInventory();
+
+                // Load cost analysis
+                await loadCostAnalysis();
+
+                // Load security assessment
+                await loadSecurityAssessment();
+
+            } catch (error) {
+                console.error('Error loading report data:', error);
+            }
+        }
+
+        async function loadPreDeploymentChecks() {
+            try {
+                const response = await fetch('./pre-deployment/precommit-results.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('precommit-results').innerHTML = formatPreDeploymentChecks(data);
+                } else {
+                    document.getElementById('precommit-results').innerHTML = '<p>Pre-deployment check data not available</p>';
+                }
+            } catch (error) {
+                document.getElementById('precommit-results').innerHTML = '<p>Error loading pre-deployment checks</p>';
+            }
+        }
+
+        async function loadResourceInventory() {
+            try {
+                const response = await fetch('./resources/resource-inventory.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('resource-inventory').innerHTML = formatResourceInventory(data);
+                } else {
+                    document.getElementById('resource-inventory').innerHTML = '<p>Resource inventory data not available</p>';
+                }
+            } catch (error) {
+                document.getElementById('resource-inventory').innerHTML = '<p>Error loading resource inventory</p>';
+            }
+        }
+
+        async function loadCostAnalysis() {
+            try {
+                const response = await fetch('./costs/cost-analysis.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('cost-analysis').innerHTML = formatCostAnalysis(data);
+                } else {
+                    document.getElementById('cost-analysis').innerHTML = '<p>Cost analysis data not available</p>';
+                }
+            } catch (error) {
+                document.getElementById('cost-analysis').innerHTML = '<p>Error loading cost analysis</p>';
+            }
+        }
+
+        async function loadSecurityAssessment() {
+            try {
+                const response = await fetch('./security/security-assessment.json');
+                if (response.ok) {
+                    const data = await response.json();
+                    document.getElementById('security-assessment').innerHTML = formatSecurityAssessment(data);
+                } else {
+                    document.getElementById('security-assessment').innerHTML = '<p>Security assessment data not available</p>';
+                }
+            } catch (error) {
+                document.getElementById('security-assessment').innerHTML = '<p>Error loading security assessment</p>';
+            }
+        }
+
+        function formatPreDeploymentChecks(data) {
+            if (!data || !data.checks) {
+                return '<p>No pre-deployment check data available</p>';
+            }
+
+            let html = '<table class="resources-table"><thead><tr><th>Check</th><th>Status</th><th>Details</th></tr></thead><tbody>';
+            data.checks.forEach(check => {
+                const statusClass = check.status === 'passed' ? 'status-success' :
+                                  check.status === 'failed' ? 'status-failed' : 'status-unknown';
+                html += `<tr><td>${check.name}</td><td class="${statusClass}">${check.status}</td><td>${check.details || ''}</td></tr>`;
+            });
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function formatResourceInventory(data) {
+            if (!Array.isArray(data) || data.length === 0) {
+                return '<p>No resources found</p>';
+            }
+
+            let html = '<table class="resources-table"><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Resource Group</th><th>Status</th></tr></thead><tbody>';
+            data.forEach(resource => {
+                const statusClass = resource.provisioningState === 'Succeeded' ? 'status-success' :
+                                  resource.provisioningState === 'Failed' ? 'status-failed' : 'status-unknown';
+                html += `<tr>`;
+                html += `<td>${resource.name}</td>`;
+                html += `<td>${resource.type.split('/').pop()}</td>`;
+                html += `<td>${resource.location}</td>`;
+                html += `<td>${resource.resourceGroup}</td>`;
+                html += `<td class="${statusClass}">${resource.provisioningState}</td>`;
+                html += `</tr>`;
+            });
+            html += '</tbody></table>';
+            return html;
+        }
+
+        function formatCostAnalysis(data) {
+            if (!data) {
+                return '<p>Cost analysis data not available</p>';
+            }
+
+            let html = `<div style="margin-bottom: 20px;">`;
+            html += `<h4>💰 Estimated Monthly Cost: $${data.estimated_monthly} ${data.currency}</h4>`;
+
+            if (data.cost_breakdown) {
+                html += `<h5>Cost Breakdown:</h5>`;
+                html += `<ul>`;
+                Object.entries(data.cost_breakdown).forEach(([category, cost]) => {
+                    if (parseFloat(cost) > 0) {
+                        html += `<li><strong>${category.charAt(0).toUpperCase() + category.slice(1)}:</strong> $${cost}</li>`;
+                    }
+                });
+                html += `</ul>`;
+            }
+
+            if (data.note) {
+                html += `<p><em>${data.note}</em></p>`;
+            }
+
+            html += `</div>`;
+            return html;
+        }
+
+        function formatSecurityAssessment(data) {
+            if (!data) {
+                return '<p>Security assessment data not available</p>';
+            }
+
+            let html = `<div style="margin-bottom: 20px;">`;
+            html += `<h4>🔒 Security Score: ${data.overall_score}/${data.max_score}</h4>`;
+
+            if (data.findings) {
+                html += `<h5>Security Findings:</h5>`;
+                html += `<ul>`;
+                Object.entries(data.findings).forEach(([key, value]) => {
+                    html += `<li><strong>${key.replace('_', ' ').charAt(0).toUpperCase() + key.replace('_', ' ').slice(1)}:</strong> ${value}</li>`;
+                });
+                html += `</ul>`;
+            }
+
+            if (data.recommendations && Array.isArray(data.recommendations) && data.recommendations.length > 0) {
+                html += `<h5>Recommendations:</h5>`;
+                html += `<ul>`;
+                data.recommendations.forEach(rec => {
+                    html += `<li>${rec}</li>`;
+                });
+                html += `</ul>`;
+            }
+
+            if (data.note) {
+                html += `<p><em>${data.note}</em></p>`;
+            }
+
+            html += `</div>`;
+            return html;
+        }
     </script>
 </body>
 </html>

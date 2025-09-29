@@ -1,5 +1,0 @@
-check json...............................................................Failed
-- hook id: check-json
-- exit code: 1
-
-blueprints/bicep/hub-spoke/main.parameters.json: Failed to json decode (Expecting ',' delimiter: line 29 column 5 (char 624))
