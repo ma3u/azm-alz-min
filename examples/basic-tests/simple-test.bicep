@@ -115,9 +115,9 @@ output testingInstructions object = {
   description: 'Instructions for testing the deployed infrastructure'
   keyVaultTesting: {
     testConnectivity: 'az keyvault show --name ${keyVault.outputs.name}'
-    setSecretCommand: 'az keyvault secret set --vault-name ${keyVault.outputs.name} --name test-secret --value "Hello from sandbox"'
-    getSecretCommand: 'az keyvault secret show --vault-name ${keyVault.outputs.name} --name test-secret --query value -o tsv'
-    listSecretsCommand: 'az keyvault secret list --vault-name ${keyVault.outputs.name} --query "[].name" -o table'
+    setSecretCommand: 'az keyvault secret set --vault-name ${keyVault.outputs.name} --name test-secret --value "Hello from sandbox"' // pragma: allowlist secret
+    getSecretCommand: 'az keyvault secret show --vault-name ${keyVault.outputs.name} --name test-secret --query value -o tsv' // pragma: allowlist secret
+    listSecretsCommand: 'az keyvault secret list --vault-name ${keyVault.outputs.name} --query "[].name" -o table' // pragma: allowlist secret
   }
   cleanup: {
     description: 'Commands to clean up sandbox resources'

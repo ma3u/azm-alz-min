@@ -1,355 +1,486 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Azure Landing Zone Deployment Report</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; margin: 0; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #0078d4, #00bcf2); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
-        .status-success { color: #107c10; }
-        .status-failed { color: #d13438; }
-        .status-unknown { color: #605e5c; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .metric { font-size: 2em; font-weight: bold; margin-bottom: 10px; }
-        .label { color: #605e5c; font-size: 0.9em; }
-        .section { background: white; border-radius: 8px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .resources-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .resources-table th, .resources-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .resources-table th { background-color: #f8f9fa; }
-        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
-        .timestamp { font-size: 0.9em; color: #605e5c; }
-        .portal-links { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
-        .portal-links a { padding: 8px 12px; color: white; text-decoration: none; border-radius: 4px; font-size: 0.9em; transition: all 0.3s ease; }
-        .portal-links a:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-        .resources-table a { color: #0078d4; text-decoration: none; font-weight: 500; transition: all 0.2s ease; }
-        .resources-table a:hover { color: #106ebe; text-decoration: underline; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        margin: 0;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        background: linear-gradient(135deg, #0078d4, #00bcf2);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+      }
+      .status-success {
+        color: #107c10;
+      }
+      .status-failed {
+        color: #d13438;
+      }
+      .status-unknown {
+        color: #605e5c;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .metric {
+        font-size: 2em;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .label {
+        color: #605e5c;
+        font-size: 0.9em;
+      }
+      .section {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .resources-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+      }
+      .resources-table th,
+      .resources-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      .resources-table th {
+        background-color: #f8f9fa;
+      }
+      pre {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+      }
+      .timestamp {
+        font-size: 0.9em;
+        color: #605e5c;
+      }
+      .portal-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      .portal-links a {
+        padding: 8px 12px;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        font-size: 0.9em;
+        transition: all 0.3s ease;
+      }
+      .portal-links a:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      }
+      .resources-table a {
+        color: #0078d4;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s ease;
+      }
+      .resources-table a:hover {
+        color: #106ebe;
+        text-decoration: underline;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>🏗️ Azure Landing Zone Deployment Report</h1>
-            <div class="timestamp">Generated: Sun Sep 29 16:35:00 CEST 2025</div>
-            <h2>alz-deployment-20250929-123823</h2>
-        </div>
+      <div class="header">
+        <h1>🏗️ Azure Landing Zone Deployment Report</h1>
+        <div class="timestamp">Generated: Sun Sep 29 16:35:00 CEST 2025</div>
+        <h2>alz-deployment-20250929-123823</h2>
+      </div>
 
-        <div class="grid">
-            <div class="card">
-                <div class="metric status-succeeded">succeeded</div>
-                <div class="label">Deployment Status</div>
-            </div>
-            <div class="card">
-                <div class="metric">6</div>
-                <div class="label">Resources Deployed</div>
-            </div>
-            <div class="card">
-                <div class="metric">$20.50</div>
-                <div class="label">Estimated Monthly Cost</div>
-            </div>
-            <div class="card">
-                <div class="metric">85/100</div>
-                <div class="label">Security Score</div>
-            </div>
+      <div class="grid">
+        <div class="card">
+          <div class="metric status-succeeded">succeeded</div>
+          <div class="label">Deployment Status</div>
         </div>
+        <div class="card">
+          <div class="metric">6</div>
+          <div class="label">Resources Deployed</div>
+        </div>
+        <div class="card">
+          <div class="metric">$20.50</div>
+          <div class="label">Estimated Monthly Cost</div>
+        </div>
+        <div class="card">
+          <div class="metric">85/100</div>
+          <div class="label">Security Score</div>
+        </div>
+      </div>
 
-        <div class="section">
-            <h3>📋 Deployment Summary</h3>
-            <p><strong>Resource Group:</strong> rg-alz-sandbox-20250929</p>
-            <p><strong>Location:</strong> westeurope</p>
-            <p><strong>Template:</strong> blueprints/bicep/hub-spoke/main.bicep</p>
-            <p><strong>Parameters:</strong> blueprints/bicep/hub-spoke/main.parameters.json</p>
-        </div>
+      <div class="section">
+        <h3>📋 Deployment Summary</h3>
+        <p><strong>Resource Group:</strong> rg-alz-sandbox-20250929</p>
+        <p><strong>Location:</strong> westeurope</p>
+        <p><strong>Template:</strong> blueprints/bicep/hub-spoke/main.bicep</p>
+        <p><strong>Parameters:</strong> blueprints/bicep/hub-spoke/main.parameters.json</p>
+      </div>
 
-        <div class="section">
-            <h3>🔍 Pre-deployment Checks</h3>
-            <div id="precommit-results"></div>
-        </div>
+      <div class="section">
+        <h3>🔍 Pre-deployment Checks</h3>
+        <div id="precommit-results"></div>
+      </div>
 
-        <div class="section">
-            <h3>📦 Resource Inventory</h3>
-            <div id="resource-inventory"></div>
-        </div>
+      <div class="section">
+        <h3>📦 Resource Inventory</h3>
+        <div id="resource-inventory"></div>
+      </div>
 
-        <div class="section">
-            <h3>💰 Cost Analysis</h3>
-            <div id="cost-analysis"></div>
-        </div>
+      <div class="section">
+        <h3>💰 Cost Analysis</h3>
+        <div id="cost-analysis"></div>
+      </div>
 
-        <div class="section">
-            <h3>🔒 Security Assessment</h3>
-            <div id="security-assessment"></div>
-        </div>
+      <div class="section">
+        <h3>🔒 Security Assessment</h3>
+        <div id="security-assessment"></div>
+      </div>
     </div>
 
     <script>
-        // Enhanced embedded JSON data with better cost breakdown
-        const reportData = {
-            preDeployment: {
-                "checks":[
-                    {"name":"Prerequisites","status":"passed","details":"All checks passed"},
-                    {"name":"Pre-commit","status":"passed","details":"Validation successful"}
-                ]
-            },
-            resources: [
-                {"name":"log-alz-hub-sandbox","type":"Microsoft.OperationalInsights/workspaces","location":"westeurope","resourceGroup":"rg-alz-hub-sandbox","provisioningState":"Succeeded"},
-                {"name":"vnet-alz-hub-sandbox","type":"Microsoft.Network/virtualNetworks","location":"westeurope","resourceGroup":"rg-alz-hub-sandbox","provisioningState":"Succeeded"},
-                {"name":"vnet-alz-spoke-sandbox","type":"Microsoft.Network/virtualNetworks","location":"westeurope","resourceGroup":"rg-alz-spoke-sandbox","provisioningState":"Succeeded"},
-                {"name":"stalzsandboxhqilxdzf","type":"Microsoft.Storage/storageAccounts","location":"westeurope","resourceGroup":"rg-alz-spoke-sandbox","provisioningState":"Succeeded"},
-                {"name":"asp-alz-sandbox","type":"Microsoft.Web/serverFarms","location":"westeurope","resourceGroup":"rg-alz-spoke-sandbox","provisioningState":"Succeeded"},
-                {"name":"app-alz-web-sandbox","type":"Microsoft.Web/sites","location":"westeurope","resourceGroup":"rg-alz-spoke-sandbox","provisioningState":"Succeeded"}
-            ],
-            costs: {
-                "timestamp": "2025-09-29T14:40:30Z",
-                "resource_group": "rg-alz-sandbox-20250929",
-                "currency": "USD",
-                "estimated_monthly": "20.50",
-                "cost_breakdown": {
-                    "compute": "0.00",
-                    "storage": "2.50",
-                    "networking": "2.00",
-                    "analytics": "5.00",
-                    "web_services": "13.00"
-                },
-                "resource_details": {
-                    "virtual_machines": "0",
-                    "storage_accounts": "1",
-                    "virtual_networks": "2",
-                    "app_service_plans": "1",
-                    "web_apps": "1",
-                    "log_analytics_workspaces": "1",
-                    "public_ips": "0"
-                },
-                "pricing_notes": [
-                    "Estimates based on Basic/Standard tier pricing",
-                    "App Service Plans: ~$13/month (B1 Basic)",
-                    "Storage Accounts: ~$2.50/month (Standard LRS)",
-                    "Log Analytics: ~$5/month (basic ingestion)",
-                    "VNets: ~$1/month each, Public IPs: ~$4/month",
-                    "Actual costs may vary based on usage and region"
-                ],
-                "note": "This is a simplified cost estimate. Use Azure Cost Management for detailed analysis."
-            },
-            security: {
-                "timestamp": "2025-09-29T14:40:30Z",
-                "resource_group": "rg-alz-sandbox-20250929",
-                "overall_score": 85,
-                "max_score": 100,
-                "assessment_date": "2025-09-29",
-                "findings": {
-                    "public_ips": 0,
-                    "storage_accounts": 1
-                },
-                "recommendations": [
-                    "Ensure storage accounts have proper access controls",
-                    "Enable Azure Security Center Standard tier",
-                    "Implement Network Security Groups for VNet protection"
-                ],
-                "note": "This is a simplified security assessment. Use Azure Security Center for comprehensive analysis."
-            }
-        };
+      // Enhanced embedded JSON data with better cost breakdown
+      const reportData = {
+        preDeployment: {
+          checks: [
+            { name: 'Prerequisites', status: 'passed', details: 'All checks passed' },
+            { name: 'Pre-commit', status: 'passed', details: 'Validation successful' },
+          ],
+        },
+        resources: [
+          {
+            name: 'log-alz-hub-sandbox',
+            type: 'Microsoft.OperationalInsights/workspaces',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-hub-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'vnet-alz-hub-sandbox',
+            type: 'Microsoft.Network/virtualNetworks',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-hub-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'vnet-alz-spoke-sandbox',
+            type: 'Microsoft.Network/virtualNetworks',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-spoke-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'stalzsandboxhqilxdzf',
+            type: 'Microsoft.Storage/storageAccounts',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-spoke-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'asp-alz-sandbox',
+            type: 'Microsoft.Web/serverFarms',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-spoke-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'app-alz-web-sandbox',
+            type: 'Microsoft.Web/sites',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-spoke-sandbox',
+            provisioningState: 'Succeeded',
+          },
+        ],
+        costs: {
+          timestamp: '2025-09-29T14:40:30Z',
+          resource_group: 'rg-alz-sandbox-20250929',
+          currency: 'USD',
+          estimated_monthly: '20.50',
+          cost_breakdown: {
+            compute: '0.00',
+            storage: '2.50',
+            networking: '2.00',
+            analytics: '5.00',
+            web_services: '13.00',
+          },
+          resource_details: {
+            virtual_machines: '0',
+            storage_accounts: '1',
+            virtual_networks: '2',
+            app_service_plans: '1',
+            web_apps: '1',
+            log_analytics_workspaces: '1',
+            public_ips: '0',
+          },
+          pricing_notes: [
+            'Estimates based on Basic/Standard tier pricing',
+            'App Service Plans: ~$13/month (B1 Basic)',
+            'Storage Accounts: ~$2.50/month (Standard LRS)',
+            'Log Analytics: ~$5/month (basic ingestion)',
+            'VNets: ~$1/month each, Public IPs: ~$4/month',
+            'Actual costs may vary based on usage and region',
+          ],
+          note: 'This is a simplified cost estimate. Use Azure Cost Management for detailed analysis.',
+        },
+        security: {
+          timestamp: '2025-09-29T14:40:30Z',
+          resource_group: 'rg-alz-sandbox-20250929',
+          overall_score: 85,
+          max_score: 100,
+          assessment_date: '2025-09-29',
+          findings: {
+            public_ips: 0,
+            storage_accounts: 1,
+          },
+          recommendations: [
+            'Ensure storage accounts have proper access controls',
+            'Enable Azure Security Center Standard tier',
+            'Implement Network Security Groups for VNet protection',
+          ],
+          note: 'This is a simplified security assessment. Use Azure Security Center for comprehensive analysis.',
+        },
+      };
 
-        document.addEventListener('DOMContentLoaded', function() {
-            loadReportData();
+      document.addEventListener('DOMContentLoaded', function () {
+        loadReportData();
+      });
+
+      function loadReportData() {
+        loadPreDeploymentChecks();
+        loadResourceInventory();
+        loadCostAnalysis();
+        loadSecurityAssessment();
+      }
+
+      function loadPreDeploymentChecks() {
+        const data = reportData.preDeployment;
+        let html =
+          '<table class="resources-table"><thead><tr><th>Check</th><th>Status</th><th>Details</th></tr></thead><tbody>';
+        data.checks.forEach(check => {
+          const statusClass =
+            check.status === 'passed'
+              ? 'status-success'
+              : check.status === 'failed'
+                ? 'status-failed'
+                : 'status-unknown';
+          html += `<tr><td>${check.name}</td><td class="${statusClass}">${check.status}</td><td>${check.details || ''}</td></tr>`;
+        });
+        html += '</tbody></table>';
+        document.getElementById('precommit-results').innerHTML = html;
+      }
+
+      function loadResourceInventory() {
+        const data = reportData.resources;
+        let html =
+          '<table class="resources-table"><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Resource Group</th><th>Status</th></tr></thead><tbody>';
+
+        // Subscription ID for portal links
+        const subscriptionId = 'fdf79377-e045-462f-ac4a-630ddee7e4c3';
+
+        data.forEach(resource => {
+          const statusClass =
+            resource.provisioningState === 'Succeeded'
+              ? 'status-success'
+              : resource.provisioningState === 'Failed'
+                ? 'status-failed'
+                : 'status-unknown';
+
+          // Create resource-specific portal URLs
+          const resourceUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resource.resourceGroup}/providers/${resource.type}/${resource.name}/overview`;
+          const resourceGroupUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resource.resourceGroup}/overview`;
+
+          html += `<tr>`;
+          html += `<td><a href="${resourceUrl}" target="_blank" style="color: #0078d4; text-decoration: none;">${resource.name}</a></td>`;
+          html += `<td>${resource.type.split('/').pop()}</td>`;
+          html += `<td>${resource.location}</td>`;
+          html += `<td><a href="${resourceGroupUrl}" target="_blank" style="color: #0078d4; text-decoration: none;">${resource.resourceGroup}</a></td>`;
+          html += `<td class="${statusClass}">${resource.provisioningState}</td>`;
+          html += `</tr>`;
+        });
+        html += '</tbody></table>';
+
+        // Add resource group summary with direct links
+        const resourceGroups = [...new Set(data.map(r => r.resourceGroup))];
+        html += `<div style="margin-top: 20px;">`;
+        html += `<h5>🔗 Resource Group Links:</h5>`;
+        html += `<div class="portal-links">`;
+
+        resourceGroups.forEach(rg => {
+          const resourceCount = data.filter(r => r.resourceGroup === rg).length;
+          const rgUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${rg}/overview`;
+          html += `<a href="${rgUrl}" target="_blank" style="background: #0078d4;">${rg} (${resourceCount} resources)</a>`;
         });
 
-        function loadReportData() {
-            loadPreDeploymentChecks();
-            loadResourceInventory();
-            loadCostAnalysis();
-            loadSecurityAssessment();
+        html += `</div>`;
+        html += `<p style="font-size: 0.9em; color: #605e5c; margin-top: 10px;"><em>💡 Click on resource names or resource groups above to view them directly in the Azure Portal</em></p>`;
+        html += `</div>`;
+
+        document.getElementById('resource-inventory').innerHTML = html;
+      }
+
+      function loadCostAnalysis() {
+        const data = reportData.costs;
+        let html = `<div style="margin-bottom: 30px;">`;
+        html += `<h4>💰 Estimated Monthly Cost: $${data.estimated_monthly} ${data.currency}</h4>`;
+
+        // Cost breakdown with percentages and resource counts
+        html += `<h5>💵 Cost Breakdown by Service:</h5>`;
+        html += `<ul style="list-style-type: none; padding-left: 0;">`;
+
+        // Map to show resource counts alongside costs
+        const resourceCounts = {
+          storage: data.resource_details.storage_accounts + ' Storage Account',
+          networking: data.resource_details.virtual_networks + ' Virtual Networks',
+          analytics: data.resource_details.log_analytics_workspaces + ' Log Analytics Workspace',
+          web_services: data.resource_details.app_service_plans + ' App Service Plan',
+        };
+
+        Object.entries(data.cost_breakdown).forEach(([category, cost]) => {
+          if (parseFloat(cost) > 0) {
+            const percentage = ((parseFloat(cost) / parseFloat(data.estimated_monthly)) * 100).toFixed(1);
+            const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+            const resourceInfo = resourceCounts[category] ? ` (${resourceCounts[category]})` : '';
+
+            html += `<li style="margin-bottom: 8px; padding: 12px; background: #f8f9fa; border-left: 4px solid #0078d4; border-radius: 4px;">`;
+            html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
+            html += `<span><strong>${categoryName}</strong>${resourceInfo}</span>`;
+            html += `<span style="font-weight: bold; color: #0078d4;">$${cost} (${percentage}%)</span>`;
+            html += `</div></li>`;
+          }
+        });
+        html += `</ul>`;
+
+        // Simplified pricing notes (keep only the most important ones)
+        html += `<h5>📝 Pricing Notes:</h5>`;
+        html += `<ul style="font-size: 0.9em; color: #605e5c;">`;
+        const importantNotes = data.pricing_notes.filter(
+          note => note.includes('App Service') || note.includes('Storage') || note.includes('Actual costs')
+        );
+        importantNotes.forEach(note => {
+          html += `<li>${note}</li>`;
+        });
+        html += `</ul>`;
+
+        // Azure portal links
+        html += `<h5>🔗 Azure Portal Links:</h5>`;
+        html += `<div class="portal-links">`;
+
+        const subscriptionId = 'fdf79377-e045-462f-ac4a-630ddee7e4c3';
+        const resourceGroup = data.resource_group;
+
+        html += `<a href="https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/overview" target="_blank" style="background: #0078d4;">🏗️ Resource Groups</a>`;
+        html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_CostManagement/Menu/overview" target="_blank" style="background: #107c10;">💰 Cost Management</a>`;
+        html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/0" target="_blank" style="background: #d13438;">🛡️ Security Center</a>`;
+        html += `<a href="https://portal.azure.com/#blade/HubsExtension/MonitoringMenuBlade/overview" target="_blank" style="background: #605e5c;">📊 Azure Monitor</a>`;
+        html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_CostManagement/Menu/budgets" target="_blank" style="background: #ff8c00;">💳 Budget Management</a>`;
+
+        html += `</div>`;
+
+        if (data.note) {
+          html += `<p><em style="color: #605e5c;">${data.note}</em></p>`;
         }
 
-        function loadPreDeploymentChecks() {
-            const data = reportData.preDeployment;
-            let html = '<table class="resources-table"><thead><tr><th>Check</th><th>Status</th><th>Details</th></tr></thead><tbody>';
-            data.checks.forEach(check => {
-                const statusClass = check.status === 'passed' ? 'status-success' : 
-                                  check.status === 'failed' ? 'status-failed' : 'status-unknown';
-                html += `<tr><td>${check.name}</td><td class="${statusClass}">${check.status}</td><td>${check.details || ''}</td></tr>`;
-            });
-            html += '</tbody></table>';
-            document.getElementById('precommit-results').innerHTML = html;
+        html += `</div>`;
+        document.getElementById('cost-analysis').innerHTML = html;
+      }
+
+      function loadSecurityAssessment() {
+        const data = reportData.security;
+        let html = `<div style="margin-bottom: 30px;">`;
+
+        // Security score with visual indicator
+        const scorePercentage = (data.overall_score / data.max_score) * 100;
+        const scoreColor = scorePercentage >= 80 ? '#107c10' : scorePercentage >= 60 ? '#ff8c00' : '#d13438';
+
+        html += `<h4>🔒 Security Score: ${data.overall_score}/${data.max_score}</h4>`;
+        html += `<div style="width: 100%; background-color: #f0f0f0; border-radius: 10px; margin-bottom: 20px;">`;
+        html += `<div style="width: ${scorePercentage}%; background-color: ${scoreColor}; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8em;">${scorePercentage.toFixed(0)}%</div>`;
+        html += `</div>`;
+
+        // Security findings with better formatting
+        html += `<h5>🔍 Security Findings:</h5>`;
+        html += `<table class="resources-table" style="margin-bottom: 20px;"><thead><tr><th>Finding</th><th>Count</th><th>Status</th></tr></thead><tbody>`;
+        Object.entries(data.findings).forEach(([key, value]) => {
+          const findingName = key.replace('_', ' ').charAt(0).toUpperCase() + key.replace('_', ' ').slice(1);
+          const status = parseInt(value) === 0 ? '✅ Good' : '⚠️ Review';
+          const statusClass = parseInt(value) === 0 ? 'status-success' : 'status-unknown';
+          html += `<tr><td>${findingName}</td><td>${value}</td><td class="${statusClass}">${status}</td></tr>`;
+        });
+        html += `</tbody></table>`;
+
+        // Recommendations with priority indicators
+        html += `<h5>📝 Security Recommendations:</h5>`;
+        html += `<ul style="list-style-type: none; padding-left: 0;">`;
+        data.recommendations.forEach((rec, index) => {
+          const priority = index === 0 ? 'High' : index === 1 ? 'Medium' : 'Low';
+          const priorityColor = priority === 'High' ? '#d13438' : priority === 'Medium' ? '#ff8c00' : '#605e5c';
+          html += `<li style="margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-left: 4px solid ${priorityColor}; border-radius: 4px;">`;
+          html += `<span style="background: ${priorityColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-right: 8px;">${priority}</span>`;
+          html += `${rec}</li>`;
+        });
+        html += `</ul>`;
+
+        // Azure Security Center integration
+        html += `<h5>🔗 Azure Security Resources:</h5>`;
+        html += `<div class="portal-links">`;
+
+        html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/0" target="_blank" style="background: #d13438;">🛡️ Security Center</a>`;
+        html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/22" target="_blank" style="background: #ff8c00;">📊 Secure Score</a>`;
+        html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/7" target="_blank" style="background: #0078d4;">🛠️ Recommendations</a>`;
+        html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/1" target="_blank" style="background: #107c10;">💻 Inventory</a>`;
+        html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Policy/PolicyMenuBlade/Overview" target="_blank" style="background: #5c2d91;">📋 Policy</a>`;
+
+        html += `</div>`;
+
+        // Security best practices
+        html += `<h5>📄 Security Best Practices:</h5>`;
+        html += `<ul style="font-size: 0.9em; color: #605e5c;">`;
+        html += `<li>Enable Azure Security Center Standard tier for advanced threat protection</li>`;
+        html += `<li>Implement Azure AD Conditional Access policies</li>`;
+        html += `<li>Use Azure Key Vault for secrets and certificate management</li>`;
+        html += `<li>Enable diagnostic logging for all resources</li>`;
+        html += `<li>Apply Network Security Groups to restrict traffic</li>`;
+        html += `<li>Use Private Endpoints for secure connectivity to PaaS services</li>`;
+        html += `</ul>`;
+
+        if (data.note) {
+          html += `<p><em style="color: #605e5c;">${data.note}</em></p>`;
         }
 
-        function loadResourceInventory() {
-            const data = reportData.resources;
-            let html = '<table class="resources-table"><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Resource Group</th><th>Status</th></tr></thead><tbody>';
-            
-            // Subscription ID for portal links
-            const subscriptionId = 'fdf79377-e045-462f-ac4a-630ddee7e4c3';
-            
-            data.forEach(resource => {
-                const statusClass = resource.provisioningState === 'Succeeded' ? 'status-success' : 
-                                  resource.provisioningState === 'Failed' ? 'status-failed' : 'status-unknown';
-                
-                // Create resource-specific portal URLs
-                const resourceUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resource.resourceGroup}/providers/${resource.type}/${resource.name}/overview`;
-                const resourceGroupUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resource.resourceGroup}/overview`;
-                
-                html += `<tr>`;
-                html += `<td><a href="${resourceUrl}" target="_blank" style="color: #0078d4; text-decoration: none;">${resource.name}</a></td>`;
-                html += `<td>${resource.type.split('/').pop()}</td>`;
-                html += `<td>${resource.location}</td>`;
-                html += `<td><a href="${resourceGroupUrl}" target="_blank" style="color: #0078d4; text-decoration: none;">${resource.resourceGroup}</a></td>`;
-                html += `<td class="${statusClass}">${resource.provisioningState}</td>`;
-                html += `</tr>`;
-            });
-            html += '</tbody></table>';
-            
-            // Add resource group summary with direct links
-            const resourceGroups = [...new Set(data.map(r => r.resourceGroup))];
-            html += `<div style="margin-top: 20px;">`;
-            html += `<h5>🔗 Resource Group Links:</h5>`;
-            html += `<div class="portal-links">`;
-            
-            resourceGroups.forEach(rg => {
-                const resourceCount = data.filter(r => r.resourceGroup === rg).length;
-                const rgUrl = `https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${rg}/overview`;
-                html += `<a href="${rgUrl}" target="_blank" style="background: #0078d4;">${rg} (${resourceCount} resources)</a>`;
-            });
-            
-            html += `</div>`;
-            html += `<p style="font-size: 0.9em; color: #605e5c; margin-top: 10px;"><em>💡 Click on resource names or resource groups above to view them directly in the Azure Portal</em></p>`;
-            html += `</div>`;
-            
-            document.getElementById('resource-inventory').innerHTML = html;
-        }
-
-        function loadCostAnalysis() {
-            const data = reportData.costs;
-            let html = `<div style="margin-bottom: 30px;">`;
-            html += `<h4>💰 Estimated Monthly Cost: $${data.estimated_monthly} ${data.currency}</h4>`;
-            
-            // Cost breakdown with percentages and resource counts
-            html += `<h5>💵 Cost Breakdown by Service:</h5>`;
-            html += `<ul style="list-style-type: none; padding-left: 0;">`;
-            
-            // Map to show resource counts alongside costs
-            const resourceCounts = {
-                'storage': data.resource_details.storage_accounts + ' Storage Account',
-                'networking': data.resource_details.virtual_networks + ' Virtual Networks', 
-                'analytics': data.resource_details.log_analytics_workspaces + ' Log Analytics Workspace',
-                'web_services': data.resource_details.app_service_plans + ' App Service Plan'
-            };
-            
-            Object.entries(data.cost_breakdown).forEach(([category, cost]) => {
-                if (parseFloat(cost) > 0) {
-                    const percentage = ((parseFloat(cost) / parseFloat(data.estimated_monthly)) * 100).toFixed(1);
-                    const categoryName = category.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                    const resourceInfo = resourceCounts[category] ? ` (${resourceCounts[category]})` : '';
-                    
-                    html += `<li style="margin-bottom: 8px; padding: 12px; background: #f8f9fa; border-left: 4px solid #0078d4; border-radius: 4px;">`;
-                    html += `<div style="display: flex; justify-content: space-between; align-items: center;">`;
-                    html += `<span><strong>${categoryName}</strong>${resourceInfo}</span>`;
-                    html += `<span style="font-weight: bold; color: #0078d4;">$${cost} (${percentage}%)</span>`;
-                    html += `</div></li>`;
-                }
-            });
-            html += `</ul>`;
-            
-            // Simplified pricing notes (keep only the most important ones)
-            html += `<h5>📝 Pricing Notes:</h5>`;
-            html += `<ul style="font-size: 0.9em; color: #605e5c;">`;
-            const importantNotes = data.pricing_notes.filter(note => 
-                note.includes('App Service') || note.includes('Storage') || note.includes('Actual costs')
-            );
-            importantNotes.forEach(note => {
-                html += `<li>${note}</li>`;
-            });
-            html += `</ul>`;
-            
-            // Azure portal links
-            html += `<h5>🔗 Azure Portal Links:</h5>`;
-            html += `<div class="portal-links">`;
-            
-            const subscriptionId = 'fdf79377-e045-462f-ac4a-630ddee7e4c3';
-            const resourceGroup = data.resource_group;
-            
-            html += `<a href="https://portal.azure.com/#@/resource/subscriptions/${subscriptionId}/resourceGroups/${resourceGroup}/overview" target="_blank" style="background: #0078d4;">🏗️ Resource Groups</a>`;
-            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_CostManagement/Menu/overview" target="_blank" style="background: #107c10;">💰 Cost Management</a>`;
-            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/0" target="_blank" style="background: #d13438;">🛡️ Security Center</a>`;
-            html += `<a href="https://portal.azure.com/#blade/HubsExtension/MonitoringMenuBlade/overview" target="_blank" style="background: #605e5c;">📊 Azure Monitor</a>`;
-            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_CostManagement/Menu/budgets" target="_blank" style="background: #ff8c00;">💳 Budget Management</a>`;
-            
-            html += `</div>`;
-            
-            if (data.note) {
-                html += `<p><em style="color: #605e5c;">${data.note}</em></p>`;
-            }
-            
-            html += `</div>`;
-            document.getElementById('cost-analysis').innerHTML = html;
-        }
-
-        function loadSecurityAssessment() {
-            const data = reportData.security;
-            let html = `<div style="margin-bottom: 30px;">`;
-            
-            // Security score with visual indicator
-            const scorePercentage = (data.overall_score / data.max_score) * 100;
-            const scoreColor = scorePercentage >= 80 ? '#107c10' : scorePercentage >= 60 ? '#ff8c00' : '#d13438';
-            
-            html += `<h4>🔒 Security Score: ${data.overall_score}/${data.max_score}</h4>`;
-            html += `<div style="width: 100%; background-color: #f0f0f0; border-radius: 10px; margin-bottom: 20px;">`;
-            html += `<div style="width: ${scorePercentage}%; background-color: ${scoreColor}; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 0.8em;">${scorePercentage.toFixed(0)}%</div>`;
-            html += `</div>`;
-            
-            // Security findings with better formatting
-            html += `<h5>🔍 Security Findings:</h5>`;
-            html += `<table class="resources-table" style="margin-bottom: 20px;"><thead><tr><th>Finding</th><th>Count</th><th>Status</th></tr></thead><tbody>`;
-            Object.entries(data.findings).forEach(([key, value]) => {
-                const findingName = key.replace('_', ' ').charAt(0).toUpperCase() + key.replace('_', ' ').slice(1);
-                const status = parseInt(value) === 0 ? '✅ Good' : '⚠️ Review';
-                const statusClass = parseInt(value) === 0 ? 'status-success' : 'status-unknown';
-                html += `<tr><td>${findingName}</td><td>${value}</td><td class="${statusClass}">${status}</td></tr>`;
-            });
-            html += `</tbody></table>`;
-            
-            // Recommendations with priority indicators
-            html += `<h5>📝 Security Recommendations:</h5>`;
-            html += `<ul style="list-style-type: none; padding-left: 0;">`;
-            data.recommendations.forEach((rec, index) => {
-                const priority = index === 0 ? 'High' : index === 1 ? 'Medium' : 'Low';
-                const priorityColor = priority === 'High' ? '#d13438' : priority === 'Medium' ? '#ff8c00' : '#605e5c';
-                html += `<li style="margin-bottom: 12px; padding: 12px; background: #f8f9fa; border-left: 4px solid ${priorityColor}; border-radius: 4px;">`;
-                html += `<span style="background: ${priorityColor}; color: white; padding: 2px 6px; border-radius: 3px; font-size: 0.8em; margin-right: 8px;">${priority}</span>`;
-                html += `${rec}</li>`;
-            });
-            html += `</ul>`;
-            
-            // Azure Security Center integration
-            html += `<h5>🔗 Azure Security Resources:</h5>`;
-            html += `<div class="portal-links">`;
-            
-            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/0" target="_blank" style="background: #d13438;">🛡️ Security Center</a>`;
-            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/22" target="_blank" style="background: #ff8c00;">📊 Secure Score</a>`;
-            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/7" target="_blank" style="background: #0078d4;">🛠️ Recommendations</a>`;
-            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Security/SecurityMenuBlade/1" target="_blank" style="background: #107c10;">💻 Inventory</a>`;
-            html += `<a href="https://portal.azure.com/#blade/Microsoft_Azure_Policy/PolicyMenuBlade/Overview" target="_blank" style="background: #5c2d91;">📋 Policy</a>`;
-            
-            html += `</div>`;
-            
-            // Security best practices
-            html += `<h5>📄 Security Best Practices:</h5>`;
-            html += `<ul style="font-size: 0.9em; color: #605e5c;">`;
-            html += `<li>Enable Azure Security Center Standard tier for advanced threat protection</li>`;
-            html += `<li>Implement Azure AD Conditional Access policies</li>`;
-            html += `<li>Use Azure Key Vault for secrets and certificate management</li>`;
-            html += `<li>Enable diagnostic logging for all resources</li>`;
-            html += `<li>Apply Network Security Groups to restrict traffic</li>`;
-            html += `<li>Use Private Endpoints for secure connectivity to PaaS services</li>`;
-            html += `</ul>`;
-            
-            if (data.note) {
-                html += `<p><em style="color: #605e5c;">${data.note}</em></p>`;
-            }
-            
-            html += `</div>`;
-            document.getElementById('security-assessment').innerHTML = html;
-        }
+        html += `</div>`;
+        document.getElementById('security-assessment').innerHTML = html;
+      }
     </script>
-</body>
+  </body>
 </html>

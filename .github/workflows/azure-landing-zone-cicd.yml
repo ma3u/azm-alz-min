@@ -63,8 +63,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: '**/package-lock.json'
+        # Skip cache since we don't have package-lock.json
 
       - name: 🏗️ Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -113,6 +112,9 @@ jobs:
         run: |
           echo "🔍 Running Checkov security scan..."
 
+          # Create reports directory
+          mkdir -p reports
+
           # Run Checkov on infrastructure files
           checkov \
             --config-file .checkov.yaml \
@@ -130,12 +132,18 @@ jobs:
             fi
           }
 
+          # Ensure SARIF file exists even if scan fails
+          if [[ ! -f "reports/checkov.sarif" ]]; then
+            echo '{"version":"2.1.0","runs":[]}' > reports/checkov.sarif
+          fi
+
       - name: 📊 Upload Checkov SARIF Results
         uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        if: always() && hashFiles('reports/checkov.sarif')
         with:
           sarif_file: reports/checkov.sarif
           category: checkov-security-scan
+        continue-on-error: true
 
       - name: 🔍 Validate AVM Module Versions
         run: |

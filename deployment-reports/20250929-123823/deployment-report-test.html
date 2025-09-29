@@ -1,252 +1,390 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Azure Landing Zone Deployment Report</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; margin: 0; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        .header { background: linear-gradient(135deg, #0078d4, #00bcf2); color: white; padding: 30px; border-radius: 10px; margin-bottom: 30px; }
-        .status-success { color: #107c10; }
-        .status-failed { color: #d13438; }
-        .status-unknown { color: #605e5c; }
-        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .metric { font-size: 2em; font-weight: bold; margin-bottom: 10px; }
-        .label { color: #605e5c; font-size: 0.9em; }
-        .section { background: white; border-radius: 8px; padding: 25px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-        .resources-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .resources-table th, .resources-table td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        .resources-table th { background-color: #f8f9fa; }
-        pre { background: #f8f9fa; padding: 15px; border-radius: 5px; overflow-x: auto; }
-        .timestamp { font-size: 0.9em; color: #605e5c; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        margin: 0;
+        background: #f5f5f5;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .header {
+        background: linear-gradient(135deg, #0078d4, #00bcf2);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 30px;
+      }
+      .status-success {
+        color: #107c10;
+      }
+      .status-failed {
+        color: #d13438;
+      }
+      .status-unknown {
+        color: #605e5c;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+        margin-bottom: 30px;
+      }
+      .card {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .metric {
+        font-size: 2em;
+        font-weight: bold;
+        margin-bottom: 10px;
+      }
+      .label {
+        color: #605e5c;
+        font-size: 0.9em;
+      }
+      .section {
+        background: white;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+      .resources-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+      }
+      .resources-table th,
+      .resources-table td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: left;
+      }
+      .resources-table th {
+        background-color: #f8f9fa;
+      }
+      pre {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        overflow-x: auto;
+      }
+      .timestamp {
+        font-size: 0.9em;
+        color: #605e5c;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="container">
-        <div class="header">
-            <h1>🏗️ Azure Landing Zone Deployment Report</h1>
-            <div class="timestamp">Generated: Sun Sep 29 16:30:00 CEST 2025</div>
-            <h2>alz-deployment-20250929-123823</h2>
-        </div>
+      <div class="header">
+        <h1>🏗️ Azure Landing Zone Deployment Report</h1>
+        <div class="timestamp">Generated: Sun Sep 29 16:30:00 CEST 2025</div>
+        <h2>alz-deployment-20250929-123823</h2>
+      </div>
 
-        <div class="grid">
-            <div class="card">
-                <div class="metric status-succeeded">succeeded</div>
-                <div class="label">Deployment Status</div>
-            </div>
-            <div class="card">
-                <div class="metric">6</div>
-                <div class="label">Resources Deployed</div>
-            </div>
-            <div class="card">
-                <div class="metric">$93.00</div>
-                <div class="label">Estimated Monthly Cost</div>
-            </div>
-            <div class="card">
-                <div class="metric">85/100</div>
-                <div class="label">Security Score</div>
-            </div>
+      <div class="grid">
+        <div class="card">
+          <div class="metric status-succeeded">succeeded</div>
+          <div class="label">Deployment Status</div>
         </div>
+        <div class="card">
+          <div class="metric">6</div>
+          <div class="label">Resources Deployed</div>
+        </div>
+        <div class="card">
+          <div class="metric">$93.00</div>
+          <div class="label">Estimated Monthly Cost</div>
+        </div>
+        <div class="card">
+          <div class="metric">85/100</div>
+          <div class="label">Security Score</div>
+        </div>
+      </div>
 
-        <div class="section">
-            <h3>📋 Deployment Summary</h3>
-            <p><strong>Resource Group:</strong> rg-alz-sandbox-20250929</p>
-            <p><strong>Location:</strong> westeurope</p>
-            <p><strong>Template:</strong> blueprints/bicep/hub-spoke/main.bicep</p>
-            <p><strong>Parameters:</strong> blueprints/bicep/hub-spoke/main.parameters.json</p>
-        </div>
+      <div class="section">
+        <h3>📋 Deployment Summary</h3>
+        <p><strong>Resource Group:</strong> rg-alz-sandbox-20250929</p>
+        <p><strong>Location:</strong> westeurope</p>
+        <p><strong>Template:</strong> blueprints/bicep/hub-spoke/main.bicep</p>
+        <p><strong>Parameters:</strong> blueprints/bicep/hub-spoke/main.parameters.json</p>
+      </div>
 
-        <div class="section">
-            <h3>🔍 Pre-deployment Checks</h3>
-            <div id="precommit-results">Working on embedded data...</div>
-        </div>
+      <div class="section">
+        <h3>🔍 Pre-deployment Checks</h3>
+        <div id="precommit-results">Working on embedded data...</div>
+      </div>
 
-        <div class="section">
-            <h3>📦 Resource Inventory</h3>
-            <div id="resource-inventory">Working on embedded data...</div>
-        </div>
+      <div class="section">
+        <h3>📦 Resource Inventory</h3>
+        <div id="resource-inventory">Working on embedded data...</div>
+      </div>
 
-        <div class="section">
-            <h3>💰 Cost Analysis</h3>
-            <div id="cost-analysis">Working on embedded data...</div>
-        </div>
+      <div class="section">
+        <h3>💰 Cost Analysis</h3>
+        <div id="cost-analysis">Working on embedded data...</div>
+      </div>
 
-        <div class="section">
-            <h3>🔒 Security Assessment</h3>
-            <div id="security-assessment">Working on embedded data...</div>
-        </div>
+      <div class="section">
+        <h3>🔒 Security Assessment</h3>
+        <div id="security-assessment">Working on embedded data...</div>
+      </div>
     </div>
 
     <script>
-        // Test embedded JSON data
-        const reportData = {
-            preDeployment: {"checks":[{"name":"Prerequisites","status":"passed","details":"All checks passed"},{"name":"Pre-commit","status":"passed","details":"Validation successful"}]},
-            resources: [{"name":"log-alz-hub-sandbox","type":"Microsoft.OperationalInsights/workspaces","location":"westeurope","resourceGroup":"rg-alz-hub-sandbox","provisioningState":"Succeeded"},{"name":"vnet-alz-hub-sandbox","type":"Microsoft.Network/virtualNetworks","location":"westeurope","resourceGroup":"rg-alz-hub-sandbox","provisioningState":"Succeeded"},{"name":"vnet-alz-spoke-sandbox","type":"Microsoft.Network/virtualNetworks","location":"westeurope","resourceGroup":"rg-alz-spoke-sandbox","provisioningState":"Succeeded"},{"name":"stalzsandboxhqilxdzf","type":"Microsoft.Storage/storageAccounts","location":"westeurope","resourceGroup":"rg-alz-spoke-sandbox","provisioningState":"Succeeded"},{"name":"asp-alz-sandbox","type":"Microsoft.Web/serverFarms","location":"westeurope","resourceGroup":"rg-alz-spoke-sandbox","provisioningState":"Succeeded"},{"name":"app-alz-web-sandbox","type":"Microsoft.Web/sites","location":"westeurope","resourceGroup":"rg-alz-spoke-sandbox","provisioningState":"Succeeded"}],
-            costs: {"timestamp":"2025-09-29T12:40:30Z","resource_group":"rg-alz-sandbox-20250929","currency":"USD","estimated_monthly":"93.00","cost_breakdown":{"compute":"0.00","storage":"5.00","networking":"2.50","other":"93.00"},"note":"This is a simplified cost estimate. Use Azure Cost Management for detailed analysis."},
-            security: {"timestamp":"2025-09-29T12:40:30Z","resource_group":"rg-alz-sandbox-20250929","overall_score":85,"max_score":100,"assessment_date":"2025-09-29","findings":{"public_ips":0,"storage_accounts":1},"recommendations":["Ensure storage accounts have proper access controls"],"note":"This is a simplified security assessment. Use Azure Security Center for comprehensive analysis."}
-        };
+      // Test embedded JSON data
+      const reportData = {
+        preDeployment: {
+          checks: [
+            { name: 'Prerequisites', status: 'passed', details: 'All checks passed' },
+            { name: 'Pre-commit', status: 'passed', details: 'Validation successful' },
+          ],
+        },
+        resources: [
+          {
+            name: 'log-alz-hub-sandbox',
+            type: 'Microsoft.OperationalInsights/workspaces',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-hub-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'vnet-alz-hub-sandbox',
+            type: 'Microsoft.Network/virtualNetworks',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-hub-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'vnet-alz-spoke-sandbox',
+            type: 'Microsoft.Network/virtualNetworks',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-spoke-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'stalzsandboxhqilxdzf',
+            type: 'Microsoft.Storage/storageAccounts',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-spoke-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'asp-alz-sandbox',
+            type: 'Microsoft.Web/serverFarms',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-spoke-sandbox',
+            provisioningState: 'Succeeded',
+          },
+          {
+            name: 'app-alz-web-sandbox',
+            type: 'Microsoft.Web/sites',
+            location: 'westeurope',
+            resourceGroup: 'rg-alz-spoke-sandbox',
+            provisioningState: 'Succeeded',
+          },
+        ],
+        costs: {
+          timestamp: '2025-09-29T12:40:30Z',
+          resource_group: 'rg-alz-sandbox-20250929',
+          currency: 'USD',
+          estimated_monthly: '93.00',
+          cost_breakdown: { compute: '0.00', storage: '5.00', networking: '2.50', other: '93.00' },
+          note: 'This is a simplified cost estimate. Use Azure Cost Management for detailed analysis.',
+        },
+        security: {
+          timestamp: '2025-09-29T12:40:30Z',
+          resource_group: 'rg-alz-sandbox-20250929',
+          overall_score: 85,
+          max_score: 100,
+          assessment_date: '2025-09-29',
+          findings: { public_ips: 0, storage_accounts: 1 },
+          recommendations: ['Ensure storage accounts have proper access controls'],
+          note: 'This is a simplified security assessment. Use Azure Security Center for comprehensive analysis.',
+        },
+      };
 
-        document.addEventListener('DOMContentLoaded', function() {
-            loadReportData();
+      document.addEventListener('DOMContentLoaded', function () {
+        loadReportData();
+      });
+
+      function loadReportData() {
+        try {
+          loadPreDeploymentChecks();
+          loadResourceInventory();
+          loadCostAnalysis();
+          loadSecurityAssessment();
+        } catch (error) {
+          console.error('Error loading report data:', error);
+        }
+      }
+
+      function loadPreDeploymentChecks() {
+        try {
+          if (reportData.preDeployment) {
+            document.getElementById('precommit-results').innerHTML = formatPreDeploymentChecks(
+              reportData.preDeployment
+            );
+          } else {
+            document.getElementById('precommit-results').innerHTML = '<p>Pre-deployment check data not available</p>';
+          }
+        } catch (error) {
+          document.getElementById('precommit-results').innerHTML = '<p>Error loading pre-deployment checks</p>';
+        }
+      }
+
+      function loadResourceInventory() {
+        try {
+          if (reportData.resources) {
+            document.getElementById('resource-inventory').innerHTML = formatResourceInventory(reportData.resources);
+          } else {
+            document.getElementById('resource-inventory').innerHTML = '<p>Resource inventory data not available</p>';
+          }
+        } catch (error) {
+          document.getElementById('resource-inventory').innerHTML = '<p>Error loading resource inventory</p>';
+        }
+      }
+
+      function loadCostAnalysis() {
+        try {
+          if (reportData.costs) {
+            document.getElementById('cost-analysis').innerHTML = formatCostAnalysis(reportData.costs);
+          } else {
+            document.getElementById('cost-analysis').innerHTML = '<p>Cost analysis data not available</p>';
+          }
+        } catch (error) {
+          document.getElementById('cost-analysis').innerHTML = '<p>Error loading cost analysis</p>';
+        }
+      }
+
+      function loadSecurityAssessment() {
+        try {
+          if (reportData.security) {
+            document.getElementById('security-assessment').innerHTML = formatSecurityAssessment(reportData.security);
+          } else {
+            document.getElementById('security-assessment').innerHTML = '<p>Security assessment data not available</p>';
+          }
+        } catch (error) {
+          document.getElementById('security-assessment').innerHTML = '<p>Error loading security assessment</p>';
+        }
+      }
+
+      function formatPreDeploymentChecks(data) {
+        if (!data || !data.checks) {
+          return '<p>No pre-deployment check data available</p>';
+        }
+
+        let html =
+          '<table class="resources-table"><thead><tr><th>Check</th><th>Status</th><th>Details</th></tr></thead><tbody>';
+        data.checks.forEach(check => {
+          const statusClass =
+            check.status === 'passed'
+              ? 'status-success'
+              : check.status === 'failed'
+                ? 'status-failed'
+                : 'status-unknown';
+          html += `<tr><td>${check.name}</td><td class="${statusClass}">${check.status}</td><td>${check.details || ''}</td></tr>`;
         });
+        html += '</tbody></table>';
+        return html;
+      }
 
-        function loadReportData() {
-            try {
-                loadPreDeploymentChecks();
-                loadResourceInventory();
-                loadCostAnalysis();
-                loadSecurityAssessment();
-            } catch (error) {
-                console.error('Error loading report data:', error);
-            }
+      function formatResourceInventory(data) {
+        if (!Array.isArray(data) || data.length === 0) {
+          return '<p>No resources found</p>';
         }
 
-        function loadPreDeploymentChecks() {
-            try {
-                if (reportData.preDeployment) {
-                    document.getElementById('precommit-results').innerHTML = formatPreDeploymentChecks(reportData.preDeployment);
-                } else {
-                    document.getElementById('precommit-results').innerHTML = '<p>Pre-deployment check data not available</p>';
-                }
-            } catch (error) {
-                document.getElementById('precommit-results').innerHTML = '<p>Error loading pre-deployment checks</p>';
-            }
+        let html =
+          '<table class="resources-table"><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Resource Group</th><th>Status</th></tr></thead><tbody>';
+        data.forEach(resource => {
+          const statusClass =
+            resource.provisioningState === 'Succeeded'
+              ? 'status-success'
+              : resource.provisioningState === 'Failed'
+                ? 'status-failed'
+                : 'status-unknown';
+          html += `<tr>`;
+          html += `<td>${resource.name}</td>`;
+          html += `<td>${resource.type.split('/').pop()}</td>`;
+          html += `<td>${resource.location}</td>`;
+          html += `<td>${resource.resourceGroup}</td>`;
+          html += `<td class="${statusClass}">${resource.provisioningState}</td>`;
+          html += `</tr>`;
+        });
+        html += '</tbody></table>';
+        return html;
+      }
+
+      function formatCostAnalysis(data) {
+        if (!data) {
+          return '<p>Cost analysis data not available</p>';
         }
 
-        function loadResourceInventory() {
-            try {
-                if (reportData.resources) {
-                    document.getElementById('resource-inventory').innerHTML = formatResourceInventory(reportData.resources);
-                } else {
-                    document.getElementById('resource-inventory').innerHTML = '<p>Resource inventory data not available</p>';
-                }
-            } catch (error) {
-                document.getElementById('resource-inventory').innerHTML = '<p>Error loading resource inventory</p>';
+        let html = `<div style="margin-bottom: 20px;">`;
+        html += `<h4>💰 Estimated Monthly Cost: $${data.estimated_monthly} ${data.currency}</h4>`;
+
+        if (data.cost_breakdown) {
+          html += `<h5>Cost Breakdown:</h5>`;
+          html += `<ul>`;
+          Object.entries(data.cost_breakdown).forEach(([category, cost]) => {
+            if (parseFloat(cost) > 0) {
+              html += `<li><strong>${category.charAt(0).toUpperCase() + category.slice(1)}:</strong> $${cost}</li>`;
             }
+          });
+          html += `</ul>`;
         }
 
-        function loadCostAnalysis() {
-            try {
-                if (reportData.costs) {
-                    document.getElementById('cost-analysis').innerHTML = formatCostAnalysis(reportData.costs);
-                } else {
-                    document.getElementById('cost-analysis').innerHTML = '<p>Cost analysis data not available</p>';
-                }
-            } catch (error) {
-                document.getElementById('cost-analysis').innerHTML = '<p>Error loading cost analysis</p>';
-            }
+        if (data.note) {
+          html += `<p><em>${data.note}</em></p>`;
         }
 
-        function loadSecurityAssessment() {
-            try {
-                if (reportData.security) {
-                    document.getElementById('security-assessment').innerHTML = formatSecurityAssessment(reportData.security);
-                } else {
-                    document.getElementById('security-assessment').innerHTML = '<p>Security assessment data not available</p>';
-                }
-            } catch (error) {
-                document.getElementById('security-assessment').innerHTML = '<p>Error loading security assessment</p>';
-            }
+        html += `</div>`;
+        return html;
+      }
+
+      function formatSecurityAssessment(data) {
+        if (!data) {
+          return '<p>Security assessment data not available</p>';
         }
 
-        function formatPreDeploymentChecks(data) {
-            if (!data || !data.checks) {
-                return '<p>No pre-deployment check data available</p>';
-            }
-            
-            let html = '<table class="resources-table"><thead><tr><th>Check</th><th>Status</th><th>Details</th></tr></thead><tbody>';
-            data.checks.forEach(check => {
-                const statusClass = check.status === 'passed' ? 'status-success' : 
-                                  check.status === 'failed' ? 'status-failed' : 'status-unknown';
-                html += `<tr><td>${check.name}</td><td class="${statusClass}">${check.status}</td><td>${check.details || ''}</td></tr>`;
-            });
-            html += '</tbody></table>';
-            return html;
+        let html = `<div style="margin-bottom: 20px;">`;
+        html += `<h4>🔒 Security Score: ${data.overall_score}/${data.max_score}</h4>`;
+
+        if (data.findings) {
+          html += `<h5>Security Findings:</h5>`;
+          html += `<ul>`;
+          Object.entries(data.findings).forEach(([key, value]) => {
+            html += `<li><strong>${key.replace('_', ' ').charAt(0).toUpperCase() + key.replace('_', ' ').slice(1)}:</strong> ${value}</li>`;
+          });
+          html += `</ul>`;
         }
 
-        function formatResourceInventory(data) {
-            if (!Array.isArray(data) || data.length === 0) {
-                return '<p>No resources found</p>';
-            }
-            
-            let html = '<table class="resources-table"><thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Resource Group</th><th>Status</th></tr></thead><tbody>';
-            data.forEach(resource => {
-                const statusClass = resource.provisioningState === 'Succeeded' ? 'status-success' : 
-                                  resource.provisioningState === 'Failed' ? 'status-failed' : 'status-unknown';
-                html += `<tr>`;
-                html += `<td>${resource.name}</td>`;
-                html += `<td>${resource.type.split('/').pop()}</td>`;
-                html += `<td>${resource.location}</td>`;
-                html += `<td>${resource.resourceGroup}</td>`;
-                html += `<td class="${statusClass}">${resource.provisioningState}</td>`;
-                html += `</tr>`;
-            });
-            html += '</tbody></table>';
-            return html;
+        if (data.recommendations && Array.isArray(data.recommendations) && data.recommendations.length > 0) {
+          html += `<h5>Recommendations:</h5>`;
+          html += `<ul>`;
+          data.recommendations.forEach(rec => {
+            html += `<li>${rec}</li>`;
+          });
+          html += `</ul>`;
         }
 
-        function formatCostAnalysis(data) {
-            if (!data) {
-                return '<p>Cost analysis data not available</p>';
-            }
-            
-            let html = `<div style="margin-bottom: 20px;">`;
-            html += `<h4>💰 Estimated Monthly Cost: $${data.estimated_monthly} ${data.currency}</h4>`;
-            
-            if (data.cost_breakdown) {
-                html += `<h5>Cost Breakdown:</h5>`;
-                html += `<ul>`;
-                Object.entries(data.cost_breakdown).forEach(([category, cost]) => {
-                    if (parseFloat(cost) > 0) {
-                        html += `<li><strong>${category.charAt(0).toUpperCase() + category.slice(1)}:</strong> $${cost}</li>`;
-                    }
-                });
-                html += `</ul>`;
-            }
-            
-            if (data.note) {
-                html += `<p><em>${data.note}</em></p>`;
-            }
-            
-            html += `</div>`;
-            return html;
+        if (data.note) {
+          html += `<p><em>${data.note}</em></p>`;
         }
 
-        function formatSecurityAssessment(data) {
-            if (!data) {
-                return '<p>Security assessment data not available</p>';
-            }
-            
-            let html = `<div style="margin-bottom: 20px;">`;
-            html += `<h4>🔒 Security Score: ${data.overall_score}/${data.max_score}</h4>`;
-            
-            if (data.findings) {
-                html += `<h5>Security Findings:</h5>`;
-                html += `<ul>`;
-                Object.entries(data.findings).forEach(([key, value]) => {
-                    html += `<li><strong>${key.replace('_', ' ').charAt(0).toUpperCase() + key.replace('_', ' ').slice(1)}:</strong> ${value}</li>`;
-                });
-                html += `</ul>`;
-            }
-            
-            if (data.recommendations && Array.isArray(data.recommendations) && data.recommendations.length > 0) {
-                html += `<h5>Recommendations:</h5>`;
-                html += `<ul>`;
-                data.recommendations.forEach(rec => {
-                    html += `<li>${rec}</li>`;
-                });
-                html += `</ul>`;
-            }
-            
-            if (data.note) {
-                html += `<p><em>${data.note}</em></p>`;
-            }
-            
-            html += `</div>`;
-            return html;
-        }
+        html += `</div>`;
+        return html;
+      }
     </script>
-</body>
+  </body>
 </html>

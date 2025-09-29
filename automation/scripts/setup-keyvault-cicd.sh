@@ -325,7 +325,7 @@ create_environment_config() {
       "subscriptionId": "$SUBSCRIPTION_ID",
       "tenantId": "$TENANT_ID",
       "clientId": "Retrieved from devops-sp-client-id secret",
-      "clientSecret": "Retrieved from devops-sp-client-secret secret"
+      "clientSecret": "Retrieved from devops-sp-client-secret secret" # pragma: allowlist secret
     }
   }
 }
