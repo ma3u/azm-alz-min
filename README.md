@@ -151,6 +151,60 @@ pip install pre-commit && pre-commit install
 - [Azure CLI Setup](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli)
 - [Bicep Setup](https://docs.microsoft.com/en-us/azure/azure-resource-manager/bicep/install)
 
+### 🔐 GitHub Actions Authentication Setup
+
+**For automated CI/CD pipelines with Azure authentication:**
+
+This repository includes GitHub Actions workflows that require Azure authentication. Set up a Service Principal for secure, automated deployments:
+
+**🚀 Automated Setup (Recommended):**
+
+```bash
+# Run the automated authentication setup script
+./automation/scripts/setup-github-auth.sh
+```
+
+**What this creates:**
+
+- ✅ **Service Principal:** `sp-github-actions-alz-sandbox` with Contributor access
+- 🔒 **GitHub Secrets:** All 5 required secrets automatically set in your repository
+- 📁 **Local Credentials:** Stored securely in `.secrets/` directory (git-ignored)
+- 🧪 **Authentication Test:** Verifies Service Principal can access your Azure resources
+
+**📋 Manual Setup (Alternative):**
+
+If you prefer manual setup, follow the detailed guide: [GitHub Authentication Setup Guide](docs/github-auth-setup-guide.md)
+
+**Required GitHub Secrets:**
+
+- `AZURE_CREDENTIALS` - Full JSON credentials object
+- `AZURE_CLIENT_ID` - Service Principal application ID
+- `AZURE_CLIENT_SECRET` - Service Principal password
+- `AZURE_SUBSCRIPTION_ID` - Your Azure subscription ID
+- `AZURE_TENANT_ID` - Your Azure tenant ID
+
+**🔍 Verify Setup:**
+
+```bash
+# Check if secrets are configured
+gh secret list
+
+# Test Service Principal authentication locally
+az login --service-principal \
+  --username $(cat .secrets/sp-client-id.txt) \
+  --password $(cat .secrets/sp-client-secret.txt) \
+  --tenant $(cat .secrets/azure-credentials.json | jq -r '.tenantId')
+```
+
+**🛡️ Security Notes:**
+
+- Service Principal has **sandbox-only access** (limited to your subscription)
+- Credentials are **encrypted in GitHub** and **git-ignored locally**
+- Regular credential rotation recommended for production use
+- Setup creates comprehensive audit trail in `.secrets/github-auth-setup-report.md`
+
+> **💡 Pro Tip:** After setup, your GitHub Actions workflows will automatically authenticate and deploy without manual intervention. Check the Actions tab to see deployments in progress!
+
 ## 📋 Documentation Library
 
 ### 🎯 Essential Getting Started
@@ -162,6 +216,7 @@ pip install pre-commit && pre-commit install
 ### 🔧 Development & Quality
 
 - [🛠️ Pre-commit Hooks Guide](docs/pre-commit-hooks-guide.md) - Code quality automation
+- [🔐 GitHub Authentication Setup Guide](docs/github-auth-setup-guide.md) - Service Principal setup for GitHub Actions
 - [🏗️ Terraform Deployment Guide](docs/terraform-deployment-guide.md) - Terraform-specific procedures
 - [🔄 Terraform CI/CD Guide](docs/terraform-cicd-guide.md) - GitHub Actions automation
 - [📚 AVM Modules Guide](docs/avm-modules-guide.md) - AVM reference and best practices
