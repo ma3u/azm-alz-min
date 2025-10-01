@@ -118,6 +118,7 @@ jobs:
           # Run Checkov on infrastructure files
           checkov \
             --config-file .checkov.yaml \
+            --directory blueprints/ \
             --directory infra/ \
             --output cli \
             --output sarif \
@@ -148,7 +149,7 @@ jobs:
       - name: 🔍 Validate AVM Module Versions
         run: |
           echo "🔍 Checking AVM module versions..."
-          find infra/ -name "*.bicep" -type f | while read -r file; do
+          find blueprints/ infra/ -name "*.bicep" -type f 2>/dev/null | while read -r file; do
             if [[ -f "$file" ]]; then
               echo "Validating AVM modules in: $file"
               ./scripts/check-avm-versions.sh "$file" || {
@@ -161,7 +162,7 @@ jobs:
       - name: 🏷️ Validate Naming Conventions
         run: |
           echo "🏷️ Validating Azure naming conventions..."
-          find infra/ -name "*.bicep" -o -name "*.tf" | while read -r file; do
+          find blueprints/ infra/ -name "*.bicep" -o -name "*.tf" 2>/dev/null | while read -r file; do
             if [[ -f "$file" ]]; then
               ./scripts/validate-naming.sh "$file" || {
                 echo "::warning::Naming convention issues found in $file"
@@ -173,7 +174,7 @@ jobs:
       - name: 🔧 Check Terraform Version Requirements
         run: |
           echo "🔧 Checking Terraform version requirements..."
-          find infra/ -name "*.tf" | head -1 | while read -r file; do
+          find blueprints/ infra/ -name "*.tf" 2>/dev/null | head -1 | while read -r file; do
             if [[ -f "$file" ]]; then
               ./scripts/check-terraform-version.sh "$file" || {
                 echo "::warning::Terraform version issues found"
@@ -192,17 +193,17 @@ jobs:
 
           # Check for Bicep changes
           if git diff --name-only HEAD~1 2>/dev/null | grep -E '\.bicep$' || [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
-            MATRIX=$(echo "$MATRIX" | jq '.include += [{"type": "bicep", "path": "infra/bicep/sandbox", "template": "main.bicep", "env": "sandbox"}]')
+            MATRIX=$(echo "$MATRIX" | jq '.include += [{"type": "bicep", "path": "blueprints/bicep/foundation", "template": "main.bicep", "env": "sandbox"}]')
           fi
 
           # Check for Terraform changes
           if git diff --name-only HEAD~1 2>/dev/null | grep -E '\.tf$' || [[ "${{ github.event.inputs.force_deploy }}" == "true" ]]; then
-            MATRIX=$(echo "$MATRIX" | jq '.include += [{"type": "terraform", "path": "infra/terraform/simple-sandbox", "env": "sandbox"}]')
+            MATRIX=$(echo "$MATRIX" | jq '.include += [{"type": "terraform", "path": "blueprints/terraform/foundation", "env": "sandbox"}]')
           fi
 
           # If no changes detected, add default sandbox deployment
           if [[ "$(echo "$MATRIX" | jq '.include | length')" == "0" ]]; then
-            MATRIX='{"include": [{"type": "bicep", "path": "infra/bicep/sandbox", "template": "main.bicep", "env": "sandbox"}]}'
+            MATRIX='{"include": [{"type": "bicep", "path": "blueprints/bicep/foundation", "template": "main.bicep", "env": "sandbox"}]}'
           fi
 
           # Compact JSON to single line for GitHub Actions output
@@ -330,7 +331,7 @@ jobs:
           fi
 
       - name: 📊 Upload Validation Results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: validation-results-${{ matrix.type }}-${{ matrix.env }}
           path: |
@@ -402,8 +403,8 @@ jobs:
         with:
           terraform_version: ${{ env.TERRAFORM_VERSION }}
 
-      - name: 📥 Download Validation Artifacts
-        uses: actions/download-artifact@v3
+      - name: 📅 Download Validation Artifacts
+        uses: actions/download-artifact@v4
         with:
           name: validation-results-${{ matrix.type }}-${{ matrix.env }}
           path: ${{ matrix.path }}
@@ -530,7 +531,7 @@ jobs:
           echo "✅ Deployment lock released - other pipelines can now deploy"
 
       - name: 📈 Upload Deployment Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: deployment-results-${{ matrix.type }}-${{ matrix.env }}
           path: |
@@ -650,7 +651,7 @@ jobs:
           echo "Branch: ${{ github.ref }}"
 
       - name: 📤 Upload Final Report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: deployment-report
           path: deployment-report.md
