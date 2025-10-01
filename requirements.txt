@@ -1,0 +1,10 @@
+# Python dependencies for Azure Landing Zone CI/CD pipeline
+# Security scanning and validation tools
+
+checkov==3.0.34
+pre-commit==3.5.0
+yamllint==1.33.0
+
+# Optional: Additional tools that might be useful
+# azure-cli-core>=2.40.0
+# terraform-compliance>=1.3.0
