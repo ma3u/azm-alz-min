@@ -205,8 +205,10 @@ jobs:
             MATRIX='{"include": [{"type": "bicep", "path": "infra/bicep/sandbox", "template": "main.bicep", "env": "sandbox"}]}'
           fi
 
-          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
-          echo "🎯 Deployment matrix: $MATRIX"
+          # Compact JSON to single line for GitHub Actions output
+          MATRIX_COMPACT=$(echo "$MATRIX" | jq -c .)
+          echo "matrix=$MATRIX_COMPACT" >> $GITHUB_OUTPUT
+          echo "🎯 Deployment matrix: $MATRIX_COMPACT"
 
   # ====================================================
   # STAGE 2: INFRASTRUCTURE VALIDATION & WHAT-IF
