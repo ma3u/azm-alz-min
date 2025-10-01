@@ -3,7 +3,7 @@
 # Project: avm-alz-min
 # Repository: https://github.com/ma3u/azm-alz-min
 
-name: "$(BuildDefinitionName)-$(Date:yyyyMMdd)-$(Rev:r)"
+name: '$(BuildDefinitionName)-$(Date:yyyyMMdd)-$(Rev:r)'
 
 # Trigger configuration
 trigger:
@@ -36,34 +36,34 @@ pr:
 variables:
   - template: variables/common.yml
   - name: buildConfiguration
-    value: "Release"
+    value: 'Release'
   - name: artifactName
-    value: "bicep-templates"
+    value: 'bicep-templates'
 
 # Pipeline stages
 stages:
   # Continuous Integration Stage
   - stage: CI
-    displayName: "Continuous Integration"
+    displayName: 'Continuous Integration'
     jobs:
       - job: ValidateAndBuild
-        displayName: "Validate and Build Bicep Templates"
+        displayName: 'Validate and Build Bicep Templates'
         pool:
-          vmImage: "ubuntu-latest"
+          vmImage: 'ubuntu-latest'
 
         steps:
           # Checkout code
           - checkout: self
-            displayName: "Checkout Repository"
+            displayName: 'Checkout Repository'
             persistCredentials: true
 
           # Install Azure CLI and Bicep
           - task: AzureCLI@2
-            displayName: "Install Bicep CLI"
+            displayName: 'Install Bicep CLI'
             inputs:
-              azureSubscription: "$(azureServiceConnection)"
-              scriptType: "bash"
-              scriptLocation: "inlineScript"
+              azureSubscription: '$(azureServiceConnection)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               inlineScript: |
                 echo "Installing Bicep CLI..."
                 az bicep install
@@ -71,11 +71,11 @@ stages:
 
           # Lint Bicep templates
           - task: AzureCLI@2
-            displayName: "Lint Bicep Templates"
+            displayName: 'Lint Bicep Templates'
             inputs:
-              azureSubscription: "$(azureServiceConnection)"
-              scriptType: "bash"
-              scriptLocation: "inlineScript"
+              azureSubscription: '$(azureServiceConnection)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               inlineScript: |
                 echo "Linting Bicep templates..."
                 for file in infra/*.bicep; do
@@ -85,11 +85,11 @@ stages:
 
           # Build ARM templates from Bicep
           - task: AzureCLI@2
-            displayName: "Build ARM Templates"
+            displayName: 'Build ARM Templates'
             inputs:
-              azureSubscription: "$(azureServiceConnection)"
-              scriptType: "bash"
-              scriptLocation: "inlineScript"
+              azureSubscription: '$(azureServiceConnection)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
               inlineScript: |
                 echo "Building ARM templates from Bicep..."
                 for file in infra/*.bicep; do
@@ -99,99 +99,99 @@ stages:
 
           # Run security scan with PSRule for Azure
           - task: ps-rule-assert@2
-            displayName: "Run PSRule for Azure Security Scan"
+            displayName: 'Run PSRule for Azure Security Scan'
             inputs:
-              source: "infra/"
-              modules: "PSRule.Rules.Azure"
-              outputFormat: "NUnit3"
-              outputPath: "reports/ps-rule-results.xml"
+              source: 'infra/'
+              modules: 'PSRule.Rules.Azure'
+              outputFormat: 'NUnit3'
+              outputPath: 'reports/ps-rule-results.xml'
             continueOnError: true
 
           # Publish security scan results
           - task: PublishTestResults@2
-            displayName: "Publish Security Scan Results"
+            displayName: 'Publish Security Scan Results'
             inputs:
-              testResultsFormat: "NUnit"
-              testResultsFiles: "reports/ps-rule-results.xml"
-              testRunTitle: "PSRule for Azure - Security Scan"
+              testResultsFormat: 'NUnit'
+              testResultsFiles: 'reports/ps-rule-results.xml'
+              testRunTitle: 'PSRule for Azure - Security Scan'
             condition: succeededOrFailed()
 
           # Copy files for artifact
           - task: CopyFiles@2
-            displayName: "Copy Files to Staging Directory"
+            displayName: 'Copy Files to Staging Directory'
             inputs:
-              sourceFolder: "$(Build.SourcesDirectory)"
+              sourceFolder: '$(Build.SourcesDirectory)'
               contents: |
                 infra/**
                 pipelines/**
                 README.md
-              targetFolder: "$(Build.ArtifactStagingDirectory)"
+              targetFolder: '$(Build.ArtifactStagingDirectory)'
               cleanTargetFolder: true
 
           # Publish build artifacts
           - task: PublishBuildArtifacts@1
-            displayName: "Publish Build Artifacts"
+            displayName: 'Publish Build Artifacts'
             inputs:
-              pathToPublish: "$(Build.ArtifactStagingDirectory)"
-              artifactName: "$(artifactName)"
-              publishLocation: "Container"
+              pathToPublish: '$(Build.ArtifactStagingDirectory)'
+              artifactName: '$(artifactName)'
+              publishLocation: 'Container'
 
   # Development Deployment Stage
   - stage: DeployDev
-    displayName: "Deploy to Development"
+    displayName: 'Deploy to Development'
     dependsOn: CI
     condition: and(succeeded(), in(variables['Build.SourceBranch'], 'refs/heads/main', 'refs/heads/develop'))
     variables:
       - name: environmentName
-        value: "dev"
+        value: 'dev'
       - name: resourceGroupName
-        value: "$(resourceGroupPrefix)-$(environmentName)"
+        value: '$(resourceGroupPrefix)-$(environmentName)'
 
     jobs:
       - deployment: DeployToDev
-        displayName: "Deploy to Development Environment"
+        displayName: 'Deploy to Development Environment'
         pool:
-          vmImage: "ubuntu-latest"
-        environment: "avm-alz-min-dev"
+          vmImage: 'ubuntu-latest'
+        environment: 'avm-alz-min-dev'
         strategy:
           runOnce:
             deploy:
               steps:
                 - template: templates/bicep-deploy.yml
                   parameters:
-                    azureServiceConnection: "$(azureServiceConnection)"
-                    subscriptionId: "$(azureSubscriptionId)"
-                    resourceGroupName: "$(resourceGroupName)"
-                    location: "$(azureRegion)"
-                    environmentName: "$(environmentName)"
-                    artifactName: "$(artifactName)"
+                    azureServiceConnection: '$(azureServiceConnection)'
+                    subscriptionId: '$(azureSubscriptionId)'
+                    resourceGroupName: '$(resourceGroupName)'
+                    location: '$(azureRegion)'
+                    environmentName: '$(environmentName)'
+                    artifactName: '$(artifactName)'
 
   # Production Deployment Stage
   - stage: DeployProd
-    displayName: "Deploy to Production"
+    displayName: 'Deploy to Production'
     dependsOn: DeployDev
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     variables:
       - name: environmentName
-        value: "prod"
+        value: 'prod'
       - name: resourceGroupName
-        value: "$(resourceGroupPrefix)-$(environmentName)"
+        value: '$(resourceGroupPrefix)-$(environmentName)'
 
     jobs:
       - deployment: DeployToProd
-        displayName: "Deploy to Production Environment"
+        displayName: 'Deploy to Production Environment'
         pool:
-          vmImage: "ubuntu-latest"
-        environment: "avm-alz-min-prod"
+          vmImage: 'ubuntu-latest'
+        environment: 'avm-alz-min-prod'
         strategy:
           runOnce:
             deploy:
               steps:
                 - template: templates/bicep-deploy.yml
                   parameters:
-                    azureServiceConnection: "$(azureServiceConnection)"
-                    subscriptionId: "$(azureSubscriptionId)"
-                    resourceGroupName: "$(resourceGroupName)"
-                    location: "$(azureRegion)"
-                    environmentName: "$(environmentName)"
-                    artifactName: "$(artifactName)"
+                    azureServiceConnection: '$(azureServiceConnection)'
+                    subscriptionId: '$(azureSubscriptionId)'
+                    resourceGroupName: '$(resourceGroupName)'
+                    location: '$(azureRegion)'
+                    environmentName: '$(environmentName)'
+                    artifactName: '$(artifactName)'
