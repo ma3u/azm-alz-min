@@ -16,6 +16,7 @@ cd /Users/ma3u/projects/azure-landingzone
 ```
 
 This script will:
+
 1. ✅ Check prerequisites (Azure CLI, jq, GitHub CLI)
 2. 🔐 Create a Service Principal with Contributor access
 3. 🧪 Test the authentication
@@ -106,13 +107,13 @@ gh secret set AZURE_CLIENT_SECRET --body "$CLIENT_SECRET"
 1. Go to: https://github.com/ma3u/azm-alz-min/settings/secrets/actions
 2. Add the following repository secrets:
 
-| Secret Name | Value |
-|-------------|-------|
-| `AZURE_CREDENTIALS` | `{"clientId": "YOUR_CLIENT_ID", "clientSecret": "YOUR_CLIENT_SECRET", "subscriptionId": "YOUR_SUBSCRIPTION_ID", "tenantId": "YOUR_TENANT_ID"}` |
-| `AZURE_SUBSCRIPTION_ID` | `YOUR_SUBSCRIPTION_ID` |
-| `AZURE_TENANT_ID` | `YOUR_TENANT_ID` |
-| `AZURE_CLIENT_ID` | `YOUR_CLIENT_ID` |
-| `AZURE_CLIENT_SECRET` | `YOUR_CLIENT_SECRET` |
+| Secret Name             | Value                                                                                                                                          |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AZURE_CREDENTIALS`     | `{"clientId": "YOUR_CLIENT_ID", "clientSecret": "YOUR_CLIENT_SECRET", "subscriptionId": "YOUR_SUBSCRIPTION_ID", "tenantId": "YOUR_TENANT_ID"}` |
+| `AZURE_SUBSCRIPTION_ID` | `YOUR_SUBSCRIPTION_ID`                                                                                                                         |
+| `AZURE_TENANT_ID`       | `YOUR_TENANT_ID`                                                                                                                               |
+| `AZURE_CLIENT_ID`       | `YOUR_CLIENT_ID`                                                                                                                               |
+| `AZURE_CLIENT_SECRET`   | `YOUR_CLIENT_SECRET`                                                                                                                           |
 
 ## 🧪 Testing GitHub Actions
 
@@ -151,6 +152,7 @@ az role assignment list --assignee $(az account show --query user.name -o tsv) -
 ```
 
 If you don't have sufficient permissions, you may need to:
+
 - Request Owner or Contributor + User Access Administrator roles
 - Have an admin create the Service Principal for you
 

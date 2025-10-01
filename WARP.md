@@ -2,6 +2,175 @@
 
 This file provides **essential guidance for Warp AI** when working with this Azure Landing Zone repository. Focus on pre-commit hook support and avoid overwhelming users with code examples.
 
+## 🎉 CURRENT STATUS (Updated Sep 30, 2025 - 05:40 UTC)
+
+### ✅ GitHub Actions Authentication FULLY CONFIGURED
+
+**Service Principal Setup Complete:**
+
+- **Name:** `sp-github-actions-alz-sandbox`
+- **Client ID:** `539d936b-8e13-444b-bc84-85b54bddf2c5`
+- **Status:** ✅ WORKING - Authenticated and tested
+- **Scope:** Limited to Sopra Steria sandbox subscription only
+- **GitHub Secrets:** All 5 secrets configured and working
+
+**Workflows Tested:**
+
+- ✅ Security & Compliance Scanning - SUCCESS (authentication verified)
+- ✅ Pre-commit hooks - Working (prettier formatting as expected)
+- ✅ Service Principal can authenticate and access Azure resources
+- ✅ All GitHub secrets properly encrypted and available to workflows
+
+**Setup Files Created:**
+
+- `automation/scripts/setup-github-auth.sh` - Automated setup script
+- `docs/github-auth-setup-guide.md` - Manual setup guide
+- `.secrets/github-auth-setup-report.md` - Complete setup documentation
+- README.md updated with GitHub Actions Authentication Setup section
+
+### 🚀 READY FOR NEXT PHASE: Infrastructure Deployment
+
+**Available Templates (Ready to Deploy):**
+
+- `blueprints/bicep/hub-spoke/main.bicep` - Battle-tested Hub-Spoke ALZ
+- `blueprints/bicep/foundation/main.bicep` - Foundation ALZ template
+- `blueprints/terraform/foundation/` - Terraform alternative
+
+**Workflow Triggers:**
+
+- Manual: `gh workflow run "🚀 Azure Landing Zone CI/CD Pipeline"`
+- Automatic: Changes to `infra/**` directory will trigger deployment
+- Files copied from blueprints to infra/ will trigger automated deployment
+
+**Next Steps Available:**
+
+1. 🏗️ **Deploy Infrastructure** - Copy template to `infra/` to trigger deployment
+2. 🛡️ **Run Security Workflows** - All compliance scanning ready with authentication
+3. 📊 **Generate Reports** - Deployment reporting with live Azure data
+4. 🔄 **Scale Production** - Create additional Service Principals for prod environments
+
+### 🏗️ DEPLOYMENT COMMANDS (Ready to Execute)
+
+**Option 1: Manual Workflow Trigger (Recommended)**
+
+```bash
+# Trigger deployment workflow manually with specific environment
+gh workflow run "🚀 Azure Landing Zone CI/CD Pipeline" \
+  --field environment=sandbox \
+  --field force_deploy=true
+```
+
+**Option 2: Automatic Trigger via File Changes**
+
+```bash
+# Copy working template to infra/ directory to trigger automatic deployment
+mkdir -p infra/bicep/foundation
+cp blueprints/bicep/foundation/main.bicep infra/bicep/foundation/main.bicep
+cp blueprints/bicep/foundation/main.parameters.json infra/bicep/foundation/main.parameters.json
+git add infra/
+git commit -m "🚀 Deploy ALZ Foundation - Testing GitHub Actions authentication"
+git push origin main
+```
+
+**Option 3: Direct Deployment Script (Bypass CI/CD)**
+
+```bash
+# Use deployment reporting script for immediate deployment + reporting
+./automation/scripts/deploy-with-report.sh \
+  blueprints/bicep/foundation/main.bicep \
+  blueprints/bicep/foundation/main.parameters.json
+```
+
+### 📊 REPORT GENERATION (Post-Deployment)
+
+**After any deployment, always generate reports:**
+
+```bash
+# Generate comprehensive deployment report with live Azure data
+./automation/scripts/generate-deployment-report.sh
+
+# Deploy reports to GitHub Pages for sharing
+./automation/scripts/deploy-reports-to-pages.sh
+
+# Check deployment status
+gh run list --limit 5
+```
+
+### 🛡️ SECURITY WORKFLOW TESTING
+
+**Test security scanning with authentication:**
+
+```bash
+# Trigger security workflow manually
+gh workflow run "Security & Compliance Scanning"
+
+# Check security scan results
+gh run list --workflow="Security & Compliance Scanning" --limit 3
+```
+
+### 🎯 EXPECTED OUTCOMES
+
+**Successful Foundation ALZ Deployment Should Create:**
+
+- 📏 **Resource Group:** `rg-alz-sandbox-sandbox`
+- 🔐 **Key Vault:** `kv-alz-sb-{unique-id}` with RBAC enabled
+- 🌐 **Virtual Network:** `vnet-alz-sandbox-sandbox` (10.0.0.0/16)
+  - Subnet: `subnet-keyvault` (10.0.1.0/24)
+  - Subnet: `subnet-private-endpoints` (10.0.2.0/24)
+  - Subnet: `subnet-workloads` (10.0.10.0/24)
+- 📊 **Log Analytics:** `log-alz-sandbox-{unique-id}`
+- 💰 **Estimated Cost:** ~$25-35/month (Standard Key Vault + VNet + Log Analytics)
+
+**Workflow Success Indicators:**
+
+- ✅ Azure authentication successful
+- ✅ Bicep template compilation
+- ✅ Security scanning completed
+- ✅ Resource deployment successful
+- ✅ Post-deployment validation passed
+
+### 🔧 TROUBLESHOOTING GUIDE
+
+**Common Issues and Solutions:**
+
+1. **GitHub Actions Authentication Fails:**
+
+   ```bash
+   # Check secrets are configured
+   gh secret list
+
+   # Test Service Principal locally
+   az login --service-principal \
+     --username $(cat .secrets/sp-client-id.txt) \
+     --password $(cat .secrets/sp-client-secret.txt) \
+     --tenant 8b87af7d-8647-4dc7-8df4-5f69a2011bb5
+   ```
+
+2. **Workflow Not Triggering:**
+
+   ```bash
+   # Check workflow files exist and are valid
+   gh workflow list
+
+   # Force trigger manually
+   gh workflow run "🚀 Azure Landing Zone CI/CD Pipeline" --field force_deploy=true
+   ```
+
+3. **Deployment Fails - Resource Names:**
+
+   ```bash
+   # Common issue: Key Vault name too long or already exists
+   # Solution: Templates use uniqueString() - should be unique automatically
+   # Check Azure portal for existing resources
+   ```
+
+4. **Security Scan Failures:**
+   ```bash
+   # Expected: Some security warnings in sandbox mode
+   # Critical failures only block production deployments
+   # Check .checkov.yaml for sandbox exceptions
+   ```
+
 ## 🎯 Purpose
 
 Warp AI should help users successfully run pre-commit hooks and follow established patterns. Always reference existing documentation instead of providing extensive code examples.
