@@ -214,14 +214,7 @@ module spokeVirtualNetwork 'br/public:avm/res/network/virtual-network:0.7.1' = {
       {
         name: 'snet-web-apps'
         addressPrefix: '10.1.2.0/24'
-        delegations: [
-          {
-            name: 'Microsoft.Web.serverFarms'
-            properties: {
-              serviceName: 'Microsoft.Web/serverFarms'
-            }
-          }
-        ]
+        delegation: 'Microsoft.Web/serverFarms'
       }
       {
         name: 'snet-private-endpoints'
@@ -231,7 +224,7 @@ module spokeVirtualNetwork 'br/public:avm/res/network/virtual-network:0.7.1' = {
 
     peerings: [
       {
-        remoteVirtualNetworkId: hubVirtualNetwork.outputs.resourceId
+        remoteVirtualNetworkResourceId: hubVirtualNetwork.outputs.resourceId
         allowForwardedTraffic: true
         allowGatewayTransit: false
         allowVirtualNetworkAccess: true
@@ -275,7 +268,7 @@ module hubToSpokePeering 'br/public:avm/res/network/virtual-network:0.7.1' = {
 
     peerings: [
       {
-        remoteVirtualNetworkId: spokeVirtualNetwork.outputs.resourceId
+        remoteVirtualNetworkResourceId: spokeVirtualNetwork.outputs.resourceId
         allowForwardedTraffic: true
         allowGatewayTransit: false
         allowVirtualNetworkAccess: true
@@ -302,14 +295,10 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.5.0' = if (enableAppWo
     location: location
     tags: commonTags
 
-    sku: {
-      name: 'B1'
-      tier: 'Basic'
-      size: 'B1'
-      capacity: 1
-    }
+    skuName: 'B1'
+    skuCapacity: 1
 
-    kind: 'App'
+    kind: 'app'
   }
   dependsOn: [
     spokeVirtualNetwork
@@ -331,7 +320,7 @@ module webApp 'br/public:avm/res/web/site:0.19.3' = if (enableAppWorkloads) {
     httpsOnly: true
     publicNetworkAccess: 'Enabled'
 
-    virtualNetworkSubnetId: '${spokeVirtualNetwork.outputs.resourceId}/subnets/snet-web-apps'
+    virtualNetworkSubnetResourceId: '${spokeVirtualNetwork.outputs.resourceId}/subnets/snet-web-apps'
 
     siteConfig: {
       alwaysOn: true
@@ -419,14 +408,7 @@ module azureBastion 'br/public:avm/res/network/bastion-host:0.8.0' = if (enableB
 
     virtualNetworkResourceId: hubVirtualNetwork.outputs.resourceId
 
-    publicIPAddressObject: {
-      publicIPAddresses: [
-        {
-          name: 'pip-${organizationPrefix}-bastion-${environment}'
-          publicIPAddressResourceId: bastionPublicIp.outputs.resourceId
-        }
-      ]
-    }
+    bastionSubnetPublicIpResourceId: bastionPublicIp.outputs.resourceId
   }
   dependsOn: [
     hubVirtualNetwork
