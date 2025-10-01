@@ -102,7 +102,7 @@ module azureContainerRegistry 'br/public:avm/res/container-registry/registry:0.9
 }
 
 // Private DNS Zone for ACR (only needed with Premium SKU)
-module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.2.4' = if (enableContainerRegistry && containerRegistrySku == 'Premium') {
+module privateDnsZoneAcr 'br/public:avm/res/network/private-dns-zone:0.8.0' = if (enableContainerRegistry && containerRegistrySku == 'Premium') {
   name: 'privateDnsZoneAcrDeployment'
   scope: hubResourceGroup
   params: {
@@ -166,7 +166,7 @@ resource spokeResourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 // =======================
 
 // Hub Virtual Network using AVM
-module hubVirtualNetwork 'br/public:avm/res/network/virtual-network:0.1.6' = {
+module hubVirtualNetwork 'br/public:avm/res/network/virtual-network:0.7.1' = {
   name: 'hubVirtualNetworkDeployment'
   scope: hubResourceGroup
   params: {
@@ -201,7 +201,7 @@ module hubVirtualNetwork 'br/public:avm/res/network/virtual-network:0.1.6' = {
 // =======================
 
 // Spoke Virtual Network using AVM
-module spokeVirtualNetwork 'br/public:avm/res/network/virtual-network:0.1.6' = {
+module spokeVirtualNetwork 'br/public:avm/res/network/virtual-network:0.7.1' = {
   name: 'spokeVirtualNetworkDeployment'
   scope: spokeResourceGroup
   params: {
@@ -245,7 +245,7 @@ module spokeVirtualNetwork 'br/public:avm/res/network/virtual-network:0.1.6' = {
 }
 
 // Hub to Spoke peering
-module hubToSpokePeering 'br/public:avm/res/network/virtual-network:0.1.6' = {
+module hubToSpokePeering 'br/public:avm/res/network/virtual-network:0.7.1' = {
   name: 'hubToSpokePeeringUpdate'
   scope: hubResourceGroup
   params: {
@@ -294,7 +294,7 @@ module hubToSpokePeering 'br/public:avm/res/network/virtual-network:0.1.6' = {
 // =======================
 
 // Web App Service Plan using AVM
-module appServicePlan 'br/public:avm/res/web/serverfarm:0.1.1' = if (enableAppWorkloads) {
+module appServicePlan 'br/public:avm/res/web/serverfarm:0.5.0' = if (enableAppWorkloads) {
   name: 'appServicePlanDeployment'
   scope: spokeResourceGroup
   params: {
@@ -317,7 +317,7 @@ module appServicePlan 'br/public:avm/res/web/serverfarm:0.1.1' = if (enableAppWo
 }
 
 // Web App using AVM
-module webApp 'br/public:avm/res/web/site:0.3.7' = if (enableAppWorkloads) {
+module webApp 'br/public:avm/res/web/site:0.19.3' = if (enableAppWorkloads) {
   name: 'webAppDeployment'
   scope: spokeResourceGroup
   params: {
@@ -358,7 +358,7 @@ module webApp 'br/public:avm/res/web/site:0.3.7' = if (enableAppWorkloads) {
 }
 
 // Storage Account using AVM
-module storageAccount 'br/public:avm/res/storage/storage-account:0.9.1' = if (enableAppWorkloads) {
+module storageAccount 'br/public:avm/res/storage/storage-account:0.27.1' = if (enableAppWorkloads) {
   name: 'storageAccountDeployment'
   scope: spokeResourceGroup
   params: {
@@ -383,7 +383,7 @@ module storageAccount 'br/public:avm/res/storage/storage-account:0.9.1' = if (en
 }
 
 // Log Analytics Workspace using AVM
-module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.3.4' = {
+module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.12.0' = {
   name: 'logAnalyticsDeployment'
   scope: hubResourceGroup
   params: {
@@ -396,7 +396,7 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
 }
 
 // Azure Bastion (optional for sandbox)
-module bastionPublicIp 'br/public:avm/res/network/public-ip-address:0.2.3' = if (enableBastion) {
+module bastionPublicIp 'br/public:avm/res/network/public-ip-address:0.9.0' = if (enableBastion) {
   name: 'bastionPublicIpDeployment'
   scope: hubResourceGroup
   params: {
@@ -409,7 +409,7 @@ module bastionPublicIp 'br/public:avm/res/network/public-ip-address:0.2.3' = if 
   }
 }
 
-module azureBastion 'br/public:avm/res/network/bastion-host:0.3.0' = if (enableBastion) {
+module azureBastion 'br/public:avm/res/network/bastion-host:0.8.0' = if (enableBastion) {
   name: 'azureBastionDeployment'
   scope: hubResourceGroup
   params: {
