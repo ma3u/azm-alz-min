@@ -78,7 +78,7 @@ resource resourceGroup 'Microsoft.Resources/resourceGroups@2023-07-01' = {
 // =======================
 
 // Deploy Virtual Network using AVM (scoped to resource group)
-module virtualNetworkDeployment 'br/public:avm/res/network/virtual-network:0.1.6' = if (virtualNetworkEnabled) {
+module virtualNetworkDeployment 'br/public:avm/res/network/virtual-network:0.7.1' = if (virtualNetworkEnabled) {
   name: 'virtualNetworkDeployment'
   scope: resourceGroup
   params: {
@@ -91,9 +91,7 @@ module virtualNetworkDeployment 'br/public:avm/res/network/virtual-network:0.1.6
         name: 'subnet-keyvault'
         addressPrefix: '10.0.1.0/24'
         serviceEndpoints: [
-          {
-            service: 'Microsoft.KeyVault'
-          }
+          'Microsoft.KeyVault'
         ]
       }
       {
@@ -117,7 +115,7 @@ module virtualNetworkDeployment 'br/public:avm/res/network/virtual-network:0.1.6
 // =======================
 
 // Deploy Log Analytics Workspace using AVM (conditional)
-module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.3.4' = if (enableDiagnostics) {
+module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.12.0' = if (enableDiagnostics) {
   name: 'logAnalyticsWorkspaceDeployment'
   scope: resourceGroup
   params: {
@@ -134,7 +132,7 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
 // =======================
 
 // Deploy Key Vault using AVM
-module keyVault 'br/public:avm/res/key-vault/vault:0.4.0' = if (keyVaultEnabled) {
+module keyVault 'br/public:avm/res/key-vault/vault:0.13.3' = if (keyVaultEnabled) {
   name: 'keyVaultDeployment'
   scope: resourceGroup
   params: {
