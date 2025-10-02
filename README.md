@@ -26,6 +26,11 @@ Based on the [LinkedIn article](https://www.linkedin.com/pulse/ai-powered-gitops
 - [🏗️ Repository Structure](#️-repository-structure)
 - [🎯 Why This Matters](#-why-this-matters)
 - [💡 Key Features](#-key-features)
+- [💰 FinOps & Cost Estimation](#-finops--cost-estimation)
+  - [🔧 Infracost Integration](#-infracost-integration)
+  - [📊 Cost Analysis Examples](#-cost-analysis-examples)
+  - [⚙️ Setup & Configuration](#️-setup--configuration)
+  - [🎯 Cost Optimization](#-cost-optimization)
 - [🎯 Azure Verified Modules (AVM) Overview](#-azure-verified-modules-avm-overview)
 - [🧪 Testing & Deployment](#-testing--deployment)
 - [📚 Learning Resources & Official Guides](#-learning-resources--official-guides)
@@ -387,6 +392,232 @@ azure-landingzone/
 - **Pre-commit Hooks:** 13+ validation tools
 - **Multi-stage CI/CD:** GitHub Actions and Azure DevOps
 - **Compliance Scanning:** Checkov, TFSec, PSRule integration
+
+---
+
+## 💰 FinOps & Cost Estimation
+
+**Professional infrastructure cost management** integrated into your deployment pipeline using industry-standard tools and real-time Azure pricing data.
+
+### 🎯 Cost Management Strategy
+
+**Why Cost Estimation Matters:**
+
+- **Prevent Surprises:** Know costs before deploying infrastructure
+- **Budget Planning:** Accurate monthly estimates for financial planning
+- **Cost Optimization:** Identify expensive resources and alternatives
+- **Compliance:** Track spending against budgets and policies
+
+### 🔧 Infracost Integration
+
+**[Infracost](https://infracost.io)** - Industry-standard Infrastructure as Code cost estimation:
+
+- ✅ **Real-time Azure Pricing:** Direct API integration with Microsoft Azure pricing
+- ✅ **400+ Resources Supported:** Comprehensive coverage of Azure services
+- ✅ **CI/CD Native:** Automatic cost estimates on every pull request
+- ✅ **Zero Maintenance:** No manual price updates or resource mapping
+- ✅ **Free Tier:** 10,000 resources per month at no cost
+
+#### Terraform Cost Analysis
+
+**Automated cost estimation for Terraform templates:**
+
+```bash
+# Local cost analysis
+cd blueprints/terraform/foundation
+infracost breakdown --path .
+
+# Project-wide analysis
+infracost breakdown --config-file infracost.yml
+```
+
+**Example Output:**
+
+```
+Name                                    Monthly Qty  Unit         Monthly Cost
+
+azurerm_container_registry.main
+├─ Registry usage (Premium)                  30  days                $50.00
+├─ Storage (over 500GB)                      100  GB                  $10.00
+└─ Build vCPU                                0  seconds              $0.00
+
+azurerm_service_plan.main
+└─ Instance usage (B1)                       730  hours               $13.14
+
+OVERALL TOTAL                                                        $73.14
+```
+
+#### Pull Request Integration
+
+**Automatic cost analysis on every PR:**
+
+- 💬 **PR Comments:** Detailed cost breakdowns posted automatically
+- 📊 **Cost Diffs:** Compare costs between branches
+- 🚨 **Cost Alerts:** Warnings for high-cost changes
+- 📈 **Optimization Tips:** Recommendations for cost reduction
+
+### 📊 Cost Analysis Examples
+
+#### Real Infrastructure Costs (Tested October 2025)
+
+**Azure Landing Zone Foundation Template:**
+
+| Resource Type                  | Monthly Cost | Purpose                              | Optimization Options                 |
+| ------------------------------ | ------------ | ------------------------------------ | ------------------------------------ |
+| **Container Registry Premium** | $49.99       | Enterprise security, geo-replication | Basic tier: $5.00 (dev)              |
+| **App Service Plan B1**        | $13.14       | Basic web workloads                  | Free tier (limitations)              |
+| **Private Endpoint**           | $7.30        | Secure connectivity                  | Public endpoints (free, less secure) |
+| **Private DNS Zone**           | $0.50        | DNS resolution                       | Required for private networking      |
+| **Total Fixed Costs**          | **$70.94**   | **Per month**                        | **Sandbox optimized: ~$18**          |
+
+**Usage-Based Resources:**
+
+- **Log Analytics:** $2.76/GB ingested
+- **Storage Account:** $0.0196/GB + operations
+- **VNet Peering:** $0.01/GB transferred
+- **Container Registry Storage:** $0.10/GB over 500GB
+
+#### Cost Comparison by Environment
+
+| Environment        | Monthly Cost | Key Features                      | Use Case                 |
+| ------------------ | ------------ | --------------------------------- | ------------------------ |
+| **Development**    | $18-25       | Basic tiers, public endpoints     | Learning, testing        |
+| **Sandbox**        | $30-35       | Standard tiers, basic security    | Proof of concept         |
+| **Production**     | $70-100      | Premium tiers, private networking | Enterprise workloads     |
+| **Enterprise ALZ** | $4,140+      | Full compliance, redundancy       | Multi-subscription setup |
+
+### ⚙️ Setup & Configuration
+
+#### Quick Setup (5 minutes)
+
+1. **Get Infracost API Key:**
+
+   - Sign up at https://dashboard.infracost.io
+   - Free tier: 10,000 resources/month
+
+2. **Configure Locally:**
+
+   ```bash
+   # Install Infracost
+   brew install infracost
+
+   # Set API key
+   infracost configure set api_key ico-your-api-key-here
+
+   # Test on Azure Landing Zone
+   cd blueprints/terraform/foundation
+   infracost breakdown --path .
+   ```
+
+3. **GitHub Integration:**
+   ```bash
+   # Add repository secret
+   Repository → Settings → Secrets and variables → Actions
+   Name: INFRACOST_API_KEY
+   Value: ico-your-api-key-here
+   ```
+
+#### Configuration Files
+
+**Project Configuration** (`infracost.yml`):
+
+```yaml
+version: 0.1
+projects:
+  - path: blueprints/terraform/foundation
+    name: alz-terraform-foundation
+    terraform_plan_flags: -var-file=terraform.tfvars
+currency: USD
+```
+
+**Usage Patterns** (`infracost-usage.yml`):
+
+```yaml
+resource_usage:
+  azurerm_log_analytics_workspace.main:
+    monthly_data_ingestion_gb: 50 # Monitoring data
+
+  azurerm_storage_account.main:
+    storage_gb: 1000 # Application data
+    monthly_tier_1_requests: 100000 # Read operations
+```
+
+### 🎯 Cost Optimization
+
+#### Development Environment Optimization
+
+**Reduce costs to ~$18/month:**
+
+```yaml
+# terraform.tfvars - Development settings
+enable_container_registry = false        # Save $50/month
+# OR
+container_registry_sku = "Basic"         # Save $45/month
+enable_private_endpoints = false         # Save $8/month
+app_service_plan_sku = "F1"              # Free tier (limitations)
+```
+
+#### Production Cost Management
+
+**Optimize without sacrificing security:**
+
+- **Reserved Instances:** 37% savings for predictable workloads
+- **Azure Hybrid Benefit:** Use existing Windows licenses
+- **Auto-shutdown:** Schedule VM downtime for dev/test environments
+- **Right-sizing:** Monitor actual usage vs. allocated resources
+
+#### Cost Monitoring Dashboard
+
+**Track costs across environments:**
+
+- 📊 **GitHub Actions Summary:** Automatic cost tracking in workflows
+- 📈 **Deployment Reports:** Cost breakdown in HTML dashboards
+- 🚨 **Budget Alerts:** Configurable thresholds for cost overruns
+- 📱 **Mobile Notifications:** Slack/Teams integration for cost alerts
+
+### 🔍 Troubleshooting & Best Practices
+
+#### Common Issues
+
+**Issue**: Infracost shows "price not found"
+
+```bash
+# Solution: Update to latest module versions
+terraform init -upgrade
+infracost breakdown --path .
+```
+
+**Issue**: Cost estimates seem high
+
+```bash
+# Solution: Check for premium SKUs
+grep -r "Premium\|Standard" *.tf
+# Consider Basic tiers for development
+```
+
+#### Best Practices
+
+1. **Regular Reviews:** Review cost estimates monthly
+2. **Environment Parity:** Keep cost configurations aligned across environments
+3. **Team Training:** Ensure developers understand cost implications
+4. **Budget Monitoring:** Set up Azure Cost Management budgets for actual tracking
+5. **Automation:** Use Infracost in CI/CD for every infrastructure change
+
+### 📚 Cost Resources
+
+#### Documentation
+
+- [Complete Cost Estimation Guide](docs/cost-estimation-guide.md) - Detailed setup and usage
+- [Infracost Test Results](docs/infracost-test-results.md) - Real-world analysis results
+- [Cost Optimization Examples](docs/cost-optimization-examples.md) - Savings strategies
+
+#### Tools & APIs
+
+- [Infracost Documentation](https://www.infracost.io/docs/) - Official Infracost docs
+- [Azure Pricing Calculator](https://azure.microsoft.com/pricing/calculator/) - Manual cost estimation
+- [Azure Cost Management](https://docs.microsoft.com/azure/cost-management-billing/) - Actual spend tracking
+
+---
 
 ## 🎯 Azure Verified Modules (AVM) Overview
 
