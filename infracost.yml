@@ -1,0 +1,37 @@
+# Infracost configuration for Azure Landing Zone project
+version: 0.1
+
+projects:
+  # Terraform Foundation Template
+  - path: blueprints/terraform/foundation
+    name: alz-terraform-foundation
+    terraform_plan_flags: -var-file=terraform.tfvars
+
+  # Future Terraform modules can be added here
+  # - path: blueprints/terraform/hub-spoke
+  #   name: alz-terraform-hub-spoke
+
+currency: USD # USD, EUR, GBP, etc.
+
+# GitHub integration settings
+github:
+  # Post cost estimates as PR comments
+  comment_on_pull_requests: true
+  # Update existing comments instead of creating new ones
+  update_existing_comments: true
+  # Show cost breakdown by resource type
+  show_breakdown: true
+  # Show cost changes between builds
+  show_diff: true
+
+# Optional: Set usage estimates for resources
+usage_file: infracost-usage.yml
+
+# Optional: Configure policies
+policies:
+  enabled: true
+
+# Optional: Configure currency formatting
+formatting:
+  # Show costs with 2 decimal places
+  precision: 2

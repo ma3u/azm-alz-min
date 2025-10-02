@@ -1,0 +1,53 @@
+# Infracost usage estimates for Azure Landing Zone resources
+# This helps provide more accurate cost estimates by specifying typical usage patterns
+
+version: 0.1
+
+resource_usage:
+  # Azure Virtual Machines - estimate monthly running hours
+  azurerm_linux_virtual_machine.hub_vm:
+    operating_system: linux
+    monthly_hrs: 730 # 24/7 for production workloads
+
+  azurerm_windows_virtual_machine.spoke_vm:
+    operating_system: windows
+    monthly_hrs: 730 # 24/7 for production workloads
+
+  # Azure Container Registry - estimate storage and bandwidth
+  azurerm_container_registry.main:
+    storage_gb: 100 # Estimated container image storage
+    monthly_class_1_requests: 10000 # Pull requests
+    monthly_class_2_requests: 1000 # Push requests
+
+  # Azure App Service Plans - these run continuously
+  azurerm_service_plan.main:
+    # No usage parameters needed - always running
+
+  # Azure Storage Accounts - estimate data storage and operations
+  azurerm_storage_account.main:
+    monthly_tier_1_requests: 100000 # Read operations
+    monthly_tier_2_requests: 10000 # Write operations
+    storage_gb: 1000 # Estimated storage usage
+
+  # Azure Log Analytics - estimate data ingestion
+  azurerm_log_analytics_workspace.main:
+    monthly_data_ingestion_gb: 50 # Estimated log data per month
+
+  # Azure Key Vault - estimate operations
+  azurerm_key_vault.main:
+    monthly_requests: 10000 # API requests per month
+
+  # Azure Bastion (if enabled) - charged per hour when deployed
+  azurerm_bastion_host.main:
+    # Bastion is charged per deployment hour (always on when deployed)
+
+  # Azure Application Gateway (if enabled)
+  azurerm_application_gateway.main:
+    monthly_data_processed_gb: 100 # Estimated traffic
+
+  # Virtual Network Peering - estimate data transfer
+  azurerm_virtual_network_peering.hub_to_spoke:
+    monthly_gb: 100 # Cross-region data transfer (if applicable)
+
+  azurerm_virtual_network_peering.spoke_to_hub:
+    monthly_gb: 100 # Cross-region data transfer (if applicable)

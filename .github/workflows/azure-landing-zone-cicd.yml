@@ -517,39 +517,73 @@ jobs:
             echo "📝 No web apps found in resource group: $WEB_APP_RG"
           fi
 
-      - name: 💰 Predictive Cost Estimation
+      - name: 💰 Infrastructure Cost Estimation
         run: |
-          echo "💰 Estimating deployment costs for newly deployed resources..."
+          echo "💰 Estimating infrastructure costs..."
 
-          # Install bc if needed for calculations
-          if ! command -v bc &> /dev/null; then
-            echo "Installing bc for cost calculations..."
-            sudo apt-get update && sudo apt-get install -y bc
+          # Initialize cost variables
+          ESTIMATED_COST="0"
+          COST_METHOD="fallback"
+
+          # For Terraform deployments, use Infracost if available
+          if [[ "${{ matrix.type }}" == "terraform" ]]; then
+            echo "🔧 Terraform deployment detected - checking for Infracost..."
+
+            if command -v infracost &> /dev/null && [[ -f "infracost.yml" ]]; then
+              echo "🚀 Running Infracost analysis..."
+
+              # Install Infracost if not available (for CI runners)
+              if ! command -v infracost &> /dev/null; then
+                echo "Installing Infracost..."
+                curl -fsSL https://raw.githubusercontent.com/infracost/infracost/master/scripts/install.sh | sh
+              fi
+
+              # Run Infracost breakdown
+              if infracost breakdown --config-file infracost.yml --format json > infracost-output.json 2>&1; then
+                # Extract total monthly cost from Infracost output
+                ESTIMATED_COST=$(jq -r '.totalMonthlyCost // "0"' infracost-output.json 2>/dev/null || echo "0")
+                COST_METHOD="infracost"
+                echo "✅ Infracost analysis completed: \$${ESTIMATED_COST}/month"
+
+                # Generate human-readable summary
+                infracost breakdown --config-file infracost.yml || echo "Summary generation failed"
+              else
+                echo "⚠️ Infracost analysis failed, falling back to basic estimation"
+                cat infracost-output.json 2>/dev/null || true
+              fi
+            else
+              echo "⚠️ Infracost not available or not configured"
+            fi
           fi
 
-          # Determine resource group to analyze
-          if [[ "${{ matrix.path }}" == *"hub-spoke"* ]]; then
-            # Hub-Spoke template analysis
-            echo "🔍 Analyzing hub-spoke deployment costs..."
-            ./scripts/estimate-deployment-costs.sh rg-alz-hub-sandbox || echo "Hub RG analysis failed"
-            ./scripts/estimate-deployment-costs.sh rg-alz-spoke-sandbox || echo "Spoke RG analysis failed"
-          else
-            # Foundation template analysis
-            echo "🔍 Analyzing foundation deployment costs..."
-            ./scripts/estimate-deployment-costs.sh rg-alz-sandbox-sandbox || {
-              echo "⚠️ Could not analyze foundation deployment - resource group may not exist yet"
-              echo "This is normal for deployments that are still in progress"
+          # Fallback cost estimation for Bicep or failed Infracost
+          if [[ "$ESTIMATED_COST" == "0" || "$COST_METHOD" == "fallback" ]]; then
+            echo "📋 Using fallback cost estimation based on template type..."
 
-              # Fallback: List any ALZ resource groups found
-              echo "📋 Available ALZ resource groups:"
-              az group list --query "[?starts_with(name, 'rg-alz')].{Name:name,Status:properties.provisioningState}" --output table || true
-            }
+            if [[ "${{ matrix.path }}" == *"hub-spoke"* ]]; then
+              ESTIMATED_COST="35"
+              echo "🏢 Hub-Spoke template estimated cost: \$35/month"
+            elif [[ "${{ matrix.path }}" == *"foundation"* ]]; then
+              ESTIMATED_COST="18"
+              echo "🏭 Foundation template estimated cost: \$18/month"
+            else
+              ESTIMATED_COST="25"
+              echo "📈 Generic template estimated cost: \$25/month"
+            fi
+            COST_METHOD="fallback"
           fi
 
-          # Export estimated cost for GitHub Actions summary
-          ESTIMATED_COST="${estimated_monthly_cost:-0}"
-          echo "📊 Setting estimated monthly cost: $ESTIMATED_COST USD"
+          # Set environment variables for later steps
           echo "ESTIMATED_MONTHLY_COST=$ESTIMATED_COST" >> $GITHUB_ENV
+          echo "COST_ESTIMATION_METHOD=$COST_METHOD" >> $GITHUB_ENV
+
+          # Cost alerts
+          if (( $(echo "$ESTIMATED_COST > 50" | bc -l 2>/dev/null || echo "0") )); then
+            echo "⚠️ Cost alert: Monthly estimate exceeds \$50 USD"
+            echo "::warning::High infrastructure costs detected: \$${ESTIMATED_COST}/month"
+          else
+            echo "✅ Cost estimation completed: \$${ESTIMATED_COST}/month (method: $COST_METHOD)"
+          fi
 
       - name: 🔓 Release Deployment Lock (Post-Deploy)
         if: always()

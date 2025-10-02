@@ -122,59 +122,30 @@ temp_file=$(mktemp)
 jq ".resourceBreakdown = $RESOURCE_JSON" "$REPORT_FILE" > "$temp_file"
 mv "$temp_file" "$REPORT_FILE"
 
-# Predictive cost estimation using deployed resources
-echo -e "${YELLOW}💰 Estimating costs with predictive analysis...${NC}"
+# Cost estimation using available tools
+echo -e "${YELLOW}💰 Estimating deployment costs...${NC}"
 
-# Use the new cost estimation script if available
-COST_SCRIPT="$PROJECT_ROOT/scripts/estimate-deployment-costs.sh"
 ESTIMATED_COST=0
-COST_ANALYSIS_SUCCESS=false
+COST_METHOD="fallback"
 
-if [[ -x "$COST_SCRIPT" ]]; then
-    echo -e "Using predictive cost estimation script..."
+# Check for Infracost integration (for Terraform projects)
+if [[ -f "$PROJECT_ROOT/infracost.yml" ]] && command -v infracost &>/dev/null; then
+    echo -e "Using Infracost for cost estimation..."
 
-    # Try to find ALZ resource groups and analyze them
-    ALZ_RESOURCE_GROUPS=$(az group list --query "[?starts_with(name, 'rg-alz')].name" -o tsv 2>/dev/null || echo "")
-
-    if [[ -n "$ALZ_RESOURCE_GROUPS" ]]; then
-        TOTAL_ESTIMATED_COST=0
-
-        while read -r rg_name; do
-            if [[ -n "$rg_name" ]]; then
-                echo -e "Analyzing resource group: $rg_name"
-
-                # Run cost estimation and capture output
-                if COST_OUTPUT=$("$COST_SCRIPT" "$rg_name" 2>&1); then
-                    # Extract the monthly cost from the script output
-                    RG_COST=$(echo "$COST_OUTPUT" | grep -E "TOTAL ESTIMATED/MONTH" | grep -oE '\$[0-9]+\.[0-9]+' | sed 's/\$//' || echo "0")
-
-                    if [[ -n "$RG_COST" && "$RG_COST" != "0" ]]; then
-                        TOTAL_ESTIMATED_COST=$(echo "$TOTAL_ESTIMATED_COST + $RG_COST" | bc -l 2>/dev/null || echo "$TOTAL_ESTIMATED_COST")
-                        COST_ANALYSIS_SUCCESS=true
-                        echo -e "✅ $rg_name estimated cost: \$${RG_COST}/month"
-                    else
-                        echo -e "⚠️ $rg_name cost analysis returned no data"
-                    fi
-                else
-                    echo -e "⚠️ Cost analysis failed for $rg_name"
-                fi
-            fi
-        done <<< "$ALZ_RESOURCE_GROUPS"
-
-        if [[ "$COST_ANALYSIS_SUCCESS" == "true" ]]; then
-            ESTIMATED_COST=$(printf "%.2f" "$TOTAL_ESTIMATED_COST")
-            echo -e "✅ Predictive cost estimation completed"
+    if infracost breakdown --config-file "$PROJECT_ROOT/infracost.yml" --format json > /tmp/infracost-report.json 2>/dev/null; then
+        ESTIMATED_COST=$(jq -r '.totalMonthlyCost // "0"' /tmp/infracost-report.json 2>/dev/null || echo "0")
+        if [[ "$ESTIMATED_COST" != "0" ]]; then
+            COST_METHOD="infracost"
+            echo -e "✅ Infracost analysis completed: \$${ESTIMATED_COST}/month"
         fi
     else
-        echo -e "⚠️ No ALZ resource groups found for cost analysis"
+        echo -e "⚠️ Infracost analysis failed"
     fi
-else
-    echo -e "⚠️ Predictive cost estimation script not found: $COST_SCRIPT"
 fi
 
-# Fallback to basic estimation if predictive analysis failed
-if [[ "$COST_ANALYSIS_SUCCESS" != "true" ]]; then
-    echo -e "Using fallback cost estimation based on resource count..."
+# Fallback to basic estimation
+if [[ "$ESTIMATED_COST" == "0" || "$COST_METHOD" == "fallback" ]]; then
+    echo -e "Using basic cost estimation based on environment and resource count..."
 
     if [[ $ENVIRONMENT == "sandbox" ]]; then
         # Sandbox cost estimation (~$18-30/month)
@@ -192,9 +163,10 @@ if [[ "$COST_ANALYSIS_SUCCESS" != "true" ]]; then
         # Development/staging estimate
         ESTIMATED_COST=$((TOTAL_RESOURCES * 15))
     fi
+    COST_METHOD="fallback"
 fi
 
-echo -e "Final estimated monthly cost: \$${ESTIMATED_COST} USD"
+echo -e "Final estimated monthly cost: \$${ESTIMATED_COST} USD (method: $COST_METHOD)"
 update_json '.metrics.estimatedMonthlyCost' "$ESTIMATED_COST"
 
 # Security assessment (simplified)

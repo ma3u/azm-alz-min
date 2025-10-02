@@ -1,0 +1,167 @@
+# Infracost Cost Estimation for Azure Landing Zone
+# Automatically estimates infrastructure costs for Terraform changes in PRs
+
+name: 💰 Infracost Cost Estimation
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'blueprints/terraform/**/*.tf'
+      - 'blueprints/terraform/**/*.tfvars'
+      - 'infracost.yml'
+      - 'infracost-usage.yml'
+      - '.github/workflows/infracost.yml'
+
+  # Allow manual runs
+  workflow_dispatch:
+
+env:
+  INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
+
+jobs:
+  infracost:
+    name: 🧮 Terraform Cost Analysis
+    runs-on: ubuntu-latest
+
+    # Only run for Terraform changes or manual dispatch
+    if: >
+      contains(github.event.pull_request.changed_files, 'blueprints/terraform/') ||
+      github.event_name == 'workflow_dispatch'
+
+    permissions:
+      contents: read
+      pull-requests: write # Required to post PR comments
+
+    steps:
+      - name: 🛒 Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history for accurate cost comparison
+          fetch-depth: 0
+
+      - name: 🏗️ Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.5'
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 📊 Setup Infracost
+        uses: infracost/actions/setup@v2
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: 🎯 Terraform Init for Cost Analysis
+        run: |
+          # Initialize all Terraform configurations for cost analysis
+          echo "🔧 Initializing Terraform configurations..."
+
+          for tf_dir in $(find blueprints/terraform -name "*.tf" -type f -exec dirname {} \; | sort -u); do
+            if [[ -f "$tf_dir/main.tf" ]]; then
+              echo "Initializing $tf_dir..."
+              cd "$tf_dir"
+
+              # Create terraform.tfvars if it doesn't exist
+              if [[ ! -f "terraform.tfvars" ]]; then
+                echo "Creating default terraform.tfvars for cost analysis..."
+                echo 'environment = "sandbox"' > terraform.tfvars
+                echo 'organization_prefix = "alz"' >> terraform.tfvars
+                echo 'location = "West Europe"' >> terraform.tfvars
+                echo 'hub_vnet_address_space = "10.0.0.0/16"' >> terraform.tfvars
+                echo 'spoke_vnet_address_space = "10.1.0.0/16"' >> terraform.tfvars
+                echo 'enable_container_registry = true' >> terraform.tfvars
+                echo 'enable_web_apps = true' >> terraform.tfvars
+                echo 'enable_bastion = false' >> terraform.tfvars
+              fi
+
+              # Initialize without backend for cost analysis
+              terraform init -backend=false
+              cd - > /dev/null
+            fi
+          done
+
+      - name: 💰 Generate Infracost Cost Estimate
+        run: |
+          echo "💰 Generating infrastructure cost estimates..."
+
+          # Generate cost estimate and save to file
+          infracost breakdown --config-file infracost.yml \
+            --format json \
+            --out-file infracost-base.json
+
+      - name: 📝 Post Cost Estimate to PR
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "📝 Posting cost estimate to pull request..."
+
+          # Generate diff showing cost changes
+          infracost diff --config-file infracost.yml \
+            --compare-to infracost-base.json \
+            --format json \
+            --out-file infracost-diff.json
+
+          # Post comment to PR
+          infracost comment github --repo ${{ github.repository }} \
+            --pull-request ${{ github.event.pull_request.number }} \
+            --path infracost-diff.json \
+            --github-token ${{ github.token }} \
+            --behavior update
+
+      - name: 📊 Generate Cost Summary
+        run: |
+          echo "📊 Generating cost summary..."
+
+          # Generate human-readable output
+          infracost breakdown --config-file infracost.yml > cost-summary.txt
+
+          # Extract key metrics
+          TOTAL_MONTHLY_COST=$(jq -r '.totalMonthlyCost // "0"' infracost-base.json)
+          RESOURCE_COUNT=$(jq -r '.projects[].breakdown.resources | length' infracost-base.json | paste -sd+ | bc)
+
+          echo "## 💰 Infrastructure Cost Estimate" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Monthly Cost:** \$${TOTAL_MONTHLY_COST} USD" >> $GITHUB_STEP_SUMMARY
+          echo "**Resources Analyzed:** ${RESOURCE_COUNT}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Detailed Breakdown" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cat cost-summary.txt >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 💡 Cost Optimization Tips" >> $GITHUB_STEP_SUMMARY
+          echo "- Review resource sizes and tiers for cost optimization" >> $GITHUB_STEP_SUMMARY
+          echo "- Consider using Azure Reserved Instances for production workloads" >> $GITHUB_STEP_SUMMARY
+          echo "- Enable auto-shutdown for development/testing VMs" >> $GITHUB_STEP_SUMMARY
+          echo "- Monitor actual usage vs. estimates in Azure Cost Management" >> $GITHUB_STEP_SUMMARY
+
+      - name: 📈 Upload Cost Analysis Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: infracost-analysis
+          path: |
+            infracost-base.json
+            infracost-diff.json
+            cost-summary.txt
+          retention-days: 30
+
+      - name: 🚨 Cost Alert Check
+        run: |
+          echo "🚨 Checking for cost alerts..."
+
+          TOTAL_COST=$(jq -r '.totalMonthlyCost // "0"' infracost-base.json)
+
+          # Convert to numeric for comparison
+          if (( $(echo "$TOTAL_COST > 100" | bc -l) )); then
+            echo "::warning::High monthly cost detected: \$${TOTAL_COST} USD"
+            echo "💸 Monthly cost estimate exceeds \$100 USD"
+            echo "Consider optimizing resource configurations to reduce costs"
+          elif (( $(echo "$TOTAL_COST > 50" | bc -l) )); then
+            echo "::notice::Moderate monthly cost: \$${TOTAL_COST} USD"
+            echo "💰 Monthly cost estimate is \$${TOTAL_COST} USD"
+          else
+            echo "✅ Cost estimate within acceptable range: \$${TOTAL_COST} USD"
+          fi
