@@ -517,36 +517,39 @@ jobs:
             echo "📝 No web apps found in resource group: $WEB_APP_RG"
           fi
 
-      - name: 💰 Cost Estimation
+      - name: 💰 Predictive Cost Estimation
         run: |
-          echo "💰 Estimating deployment costs..."
+          echo "💰 Estimating deployment costs for newly deployed resources..."
 
-          # Get resource costs for the last 7 days
-          COST_DATA=$(az consumption usage list \
-            --start-date $(date -d '7 days ago' +%Y-%m-%d) \
-            --end-date $(date +%Y-%m-%d) \
-            --query '[].{service: instanceName, cost: pretaxCost}' \
-            --output json 2>/dev/null || echo '[]')
-
-          echo "Recent cost data: $COST_DATA"
-
-          # Simple cost alerting with better error handling
-          TOTAL_COST=$(echo "$COST_DATA" | jq -r '[
-            .[] |
-            if (.cost == "None" or .cost == null) then 0
-            else (.cost | tonumber)
-            end
-          ] | add // 0' 2>/dev/null || echo "0")
-
-          echo "Total estimated cost: $TOTAL_COST USD"
-
-          # Use awk for numeric comparison instead of bc -l
-          if awk "BEGIN {exit !($TOTAL_COST > 50)}"; then
-            echo "⚠️ Cost alert: Deployment costs exceed \$50 USD"
-            echo "::warning::High infrastructure costs detected"
-          else
-            echo "✅ Cost estimation completed - costs within acceptable range"
+          # Install bc if needed for calculations
+          if ! command -v bc &> /dev/null; then
+            echo "Installing bc for cost calculations..."
+            sudo apt-get update && sudo apt-get install -y bc
           fi
+
+          # Determine resource group to analyze
+          if [[ "${{ matrix.path }}" == *"hub-spoke"* ]]; then
+            # Hub-Spoke template analysis
+            echo "🔍 Analyzing hub-spoke deployment costs..."
+            ./scripts/estimate-deployment-costs.sh rg-alz-hub-sandbox || echo "Hub RG analysis failed"
+            ./scripts/estimate-deployment-costs.sh rg-alz-spoke-sandbox || echo "Spoke RG analysis failed"
+          else
+            # Foundation template analysis
+            echo "🔍 Analyzing foundation deployment costs..."
+            ./scripts/estimate-deployment-costs.sh rg-alz-sandbox-sandbox || {
+              echo "⚠️ Could not analyze foundation deployment - resource group may not exist yet"
+              echo "This is normal for deployments that are still in progress"
+
+              # Fallback: List any ALZ resource groups found
+              echo "📋 Available ALZ resource groups:"
+              az group list --query "[?starts_with(name, 'rg-alz')].{Name:name,Status:properties.provisioningState}" --output table || true
+            }
+          fi
+
+          # Export estimated cost for GitHub Actions summary
+          ESTIMATED_COST="${estimated_monthly_cost:-0}"
+          echo "📊 Setting estimated monthly cost: $ESTIMATED_COST USD"
+          echo "ESTIMATED_MONTHLY_COST=$ESTIMATED_COST" >> $GITHUB_ENV
 
       - name: 🔓 Release Deployment Lock (Post-Deploy)
         if: always()

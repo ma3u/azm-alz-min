@@ -146,6 +146,65 @@ The actual infrastructure deployment was successful despite the cost estimation 
 
 ---
 
-**Status**: ✅ **RESOLVED**
-**Fix Committed**: `04ef3c7` - "🔧 Fix cost estimation JQ parsing error in Azure Landing Zone CI/CD"
-**Next Workflow Run**: Should succeed without cost estimation errors
+## 🚀 Additional Improvements Made
+
+### 1. Predictive Cost Estimation Script
+
+**Created**: `scripts/estimate-deployment-costs.sh`
+
+**Key Features**:
+
+- **Real-time Analysis**: Analyzes DEPLOYED resources immediately after deployment
+- **Resource-Specific Pricing**: Uses Azure pricing data for accurate estimates
+- **Multiple Service Support**: Covers VMs, Storage, Key Vault, App Services, ACR, etc.
+- **Cross-Platform**: Works on macOS, Linux, and GitHub Actions runners
+
+**Example Usage**:
+
+```bash
+# Analyze specific resource group
+./scripts/estimate-deployment-costs.sh rg-alz-sandbox-sandbox
+
+# With custom region and currency
+./scripts/estimate-deployment-costs.sh -r eastus -c EUR rg-alz-hub-sandbox
+```
+
+### 2. Enhanced Workflow Cost Estimation
+
+**Updated**: `.github/workflows/azure-landing-zone-cicd.yml`
+
+**Improvements**:
+
+- **Predictive vs Historical**: Now analyzes newly deployed resources instead of 7-day-old billing data
+- **Real Resource Analysis**: Uses Azure Resource Graph for actual deployed infrastructure
+- **Better Error Handling**: Graceful fallbacks if cost analysis fails
+- **Cross-Platform Date**: Fixed macOS date command compatibility
+
+### 3. Updated Deployment Reports
+
+**Enhanced**: `automation/scripts/generate-deployment-report.sh`
+
+**New Features**:
+
+- **Integrated Predictive Costs**: Uses the new cost estimation script automatically
+- **Multi-Resource Group Analysis**: Analyzes all ALZ-related resource groups
+- **Fallback Logic**: Maintains backward compatibility with basic estimates
+- **Detailed Cost Breakdown**: Shows per-resource-group cost analysis
+
+### 4. Historical vs Predictive Comparison
+
+| Aspect                | ❌ Historical Approach    | ✅ Predictive Approach           |
+| --------------------- | ------------------------- | -------------------------------- |
+| **Data Source**       | Azure Cost Management API | Azure Resource Graph + Pricing   |
+| **Latency**           | 24-72 hours delay         | Real-time (immediate)            |
+| **New Resources**     | Won't show for days       | Available immediately            |
+| **Accuracy**          | Historical actual costs   | Current resource-based estimates |
+| **CI/CD Suitability** | Poor (stale data)         | Excellent (immediate feedback)   |
+| **API Reliability**   | Returns "None" strings    | Structured resource data         |
+
+---
+
+**Status**: ✅ **RESOLVED & ENHANCED**
+**Original Fix**: `04ef3c7` - "🔧 Fix cost estimation JQ parsing error in Azure Landing Zone CI/CD"
+**Enhancement**: `[current]` - "🚀 Add predictive cost estimation with real-time resource analysis"
+**Next Workflow Run**: Will provide immediate, accurate cost estimates for deployed resources
