@@ -232,6 +232,7 @@ resource cafFoundationInitiative 'Microsoft.Authorization/policySetDefinitions@2
 // Assign CAF Foundation Initiative to Root
 resource cafFoundationAssignment 'Microsoft.Authorization/policyAssignments@2022-06-01' = {
   name: 'caf-foundation-assignment'
+  scope: managementGroup(rootManagementGroupId)
   properties: {
     displayName: 'CAF Foundation Initiative Assignment'
     description: 'Assignment of CAF foundation policies for governance and compliance'
@@ -264,7 +265,7 @@ resource cafFoundationAssignment 'Microsoft.Authorization/policyAssignments@2022
 // Platform-specific assignments
 resource platformTaggingPolicy 'Microsoft.Authorization/policyAssignments@2022-06-01' = {
   name: 'caf-platform-tagging'
-  scope: '/providers/Microsoft.Management/managementGroups/${platformManagementGroupId}'
+  scope: managementGroup(platformManagementGroupId)
   properties: {
     displayName: 'CAF - Platform Resource Tagging'
     description: 'Enforce platform-specific tagging requirements'
@@ -285,7 +286,7 @@ resource platformTaggingPolicy 'Microsoft.Authorization/policyAssignments@2022-0
 // Landing Zones specific assignments
 resource landingZoneTaggingPolicy 'Microsoft.Authorization/policyAssignments@2022-06-01' = {
   name: 'caf-lz-tagging'
-  scope: '/providers/Microsoft.Management/managementGroups/${landingZonesManagementGroupId}'
+  scope: managementGroup(landingZonesManagementGroupId)
   properties: {
     displayName: 'CAF - Landing Zone Resource Tagging'
     description: 'Enforce workload-specific tagging requirements'

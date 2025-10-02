@@ -449,7 +449,6 @@ jobs:
 
           # Apply configuration
           terraform apply \
-            -var-file=terraform.tfvars \
             -auto-approve \
             -no-color \
             tfplan 2>&1 | tee terraform-apply.txt
