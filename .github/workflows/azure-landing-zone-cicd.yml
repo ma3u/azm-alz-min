@@ -465,24 +465,47 @@ jobs:
           # Wait for resources to be fully provisioned
           sleep 60
 
-          # Test resource group existence
-          if az group show --name "rg-alz-hub-sandbox" --output none 2>/dev/null; then
-            echo "✅ Hub resource group exists"
-          else
-            echo "❌ Hub resource group not found"
-            exit 1
-          fi
+          # Test resource group existence - detect actual deployed RG name
+          if [[ "${{ matrix.path }}" == *"hub-spoke"* ]]; then
+            # Hub-Spoke template tests
+            if az group show --name "rg-alz-hub-sandbox" --output none 2>/dev/null; then
+              echo "✅ Hub resource group exists"
+            else
+              echo "❌ Hub resource group not found"
+              exit 1
+            fi
 
-          if az group show --name "rg-alz-spoke-sandbox" --output none 2>/dev/null; then
-            echo "✅ Spoke resource group exists"
+            if az group show --name "rg-alz-spoke-sandbox" --output none 2>/dev/null; then
+              echo "✅ Spoke resource group exists"
+            else
+              echo "❌ Spoke resource group not found"
+              exit 1
+            fi
           else
-            echo "❌ Spoke resource group not found"
-            exit 1
+            # Foundation template tests - single RG
+            EXPECTED_RG="rg-alz-sandbox-sandbox"
+            if az group show --name "$EXPECTED_RG" --output none 2>/dev/null; then
+              echo "✅ Foundation resource group exists: $EXPECTED_RG"
+            else
+              echo "❌ Foundation resource group not found: $EXPECTED_RG"
+              # List all RGs for debugging
+              echo "📋 Available resource groups:"
+              az group list --query "[?starts_with(name, 'rg-alz')].name" -o table || true
+              exit 1
+            fi
           fi
 
           # Test web app connectivity (if deployed)
-          if az webapp list --resource-group "rg-alz-spoke-sandbox" --query "[0].defaultHostName" -o tsv 2>/dev/null | grep -q "azurewebsites.net"; then
-            WEB_APP_URL=$(az webapp list --resource-group "rg-alz-spoke-sandbox" --query "[0].defaultHostName" -o tsv)
+          if [[ "${{ matrix.path }}" == *"hub-spoke"* ]]; then
+            # Hub-Spoke template has web apps in spoke RG
+            WEB_APP_RG="rg-alz-spoke-sandbox"
+          else
+            # Foundation template has web apps (if any) in single RG
+            WEB_APP_RG="rg-alz-sandbox-sandbox"
+          fi
+
+          if az webapp list --resource-group "$WEB_APP_RG" --query "[0].defaultHostName" -o tsv 2>/dev/null | grep -q "azurewebsites.net"; then
+            WEB_APP_URL=$(az webapp list --resource-group "$WEB_APP_RG" --query "[0].defaultHostName" -o tsv)
             echo "🌐 Testing web app connectivity: $WEB_APP_URL"
 
             if curl -sSf "https://$WEB_APP_URL" > /dev/null; then
@@ -490,6 +513,8 @@ jobs:
             else
               echo "⚠️ Web app not responding (may still be starting up)"
             fi
+          else
+            echo "📝 No web apps found in resource group: $WEB_APP_RG"
           fi
 
       - name: 💰 Cost Estimation
