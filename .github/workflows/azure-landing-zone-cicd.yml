@@ -530,13 +530,22 @@ jobs:
 
           echo "Recent cost data: $COST_DATA"
 
-          # Simple cost alerting
-          TOTAL_COST=$(echo "$COST_DATA" | jq '[.[].cost | tonumber] | add // 0')
+          # Simple cost alerting with better error handling
+          TOTAL_COST=$(echo "$COST_DATA" | jq -r '[
+            .[] |
+            if (.cost == "None" or .cost == null) then 0
+            else (.cost | tonumber)
+            end
+          ] | add // 0' 2>/dev/null || echo "0")
+
           echo "Total estimated cost: $TOTAL_COST USD"
 
-          if (( $(echo "$TOTAL_COST > 50" | bc -l) )); then
-            echo "⚠️ Cost alert: Deployment costs exceed $50 USD"
+          # Use awk for numeric comparison instead of bc -l
+          if awk "BEGIN {exit !($TOTAL_COST > 50)}"; then
+            echo "⚠️ Cost alert: Deployment costs exceed \$50 USD"
             echo "::warning::High infrastructure costs detected"
+          else
+            echo "✅ Cost estimation completed - costs within acceptable range"
           fi
 
       - name: 🔓 Release Deployment Lock (Post-Deploy)
