@@ -138,12 +138,14 @@ graph TB
 #### Core Network Services
 
 1. **Azure Firewall Premium** (AVM: `avm/res/network/azure-firewall`)
+
    - IDPS (Intrusion Detection and Prevention System)
    - TLS inspection for encrypted traffic
    - Web filtering and threat intelligence
    - Network and application rule processing
 
 2. **Private DNS Resolver** (AVM: `avm/res/network/private-dns-resolver`)
+
    - Private DNS resolution within VNet
    - Conditional forwarding for hybrid scenarios
    - No public DNS exposure
@@ -157,6 +159,7 @@ graph TB
 #### Shared Services
 
 4. **Log Analytics Workspace** (AVM: `avm/res/operational-insights/workspace`)
+
    - Centralized logging and monitoring
    - Security event correlation
    - Performance analytics
@@ -172,18 +175,21 @@ graph TB
 #### Compute Services
 
 1. **Application Gateway v2** (AVM: `avm/res/network/application-gateway`)
+
    - WAF v2 with OWASP top 10 protection
    - SSL/TLS termination with managed certificates
    - Multi-site hosting and path-based routing
    - Zone redundancy for high availability
 
 2. **Azure Web Apps** (AVM: `avm/res/web/site`)
+
    - VNet integration for private communication
    - Managed identity for secure resource access
    - Deployment slots for blue-green deployments
    - Auto-scaling based on demand
 
 3. **Azure Container Apps** (AVM: `avm/res/app/container-app`)
+
    - Serverless containers with KEDA autoscaling
    - VNet integration and private endpoints
    - Dapr integration for microservices
@@ -198,18 +204,21 @@ graph TB
 #### Data Services
 
 5. **PostgreSQL Flexible Server** (AVM: `avm/res/db-for-postgreSQL/flexible-server`)
+
    - Private networking with VNet integration
    - High availability with zone redundancy
    - Automated backups and point-in-time restore
    - Performance insights and query optimization
 
 6. **Azure Storage Account** (AVM: `avm/res/storage/storage-account`)
+
    - Private endpoints for secure access
    - Blob storage with lifecycle management
    - Table storage for application data
    - Queue storage for asynchronous processing
 
 7. **Azure Container Registry Premium** (AVM: `avm/res/container-registry/registry`)
+
    - Private endpoints for secure image pulls
    - Geo-replication for disaster recovery
    - Image scanning for vulnerability assessment
@@ -226,12 +235,14 @@ graph TB
 #### DevOps Services
 
 1. **Self-hosted DevOps Agents** (AVM: `avm/res/compute/virtual-machine`)
+
    - Private network deployment agents
    - Container-based runners for scalability
    - Managed identity for Azure resource access
    - Auto-scaling based on build queue
 
 2. **Monitoring and Observability**
+
    - **Azure Monitor** (AVM: `avm/res/insights/component`)
    - **Application Insights** for application telemetry
    - **Grafana** for custom dashboards

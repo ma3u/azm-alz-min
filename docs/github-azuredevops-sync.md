@@ -25,6 +25,7 @@ This method uses GitHub as the source of truth while running Azure DevOps pipeli
 ### Step 1: Connect GitHub Repository to Azure DevOps
 
 1. **Navigate to Azure DevOps Project**:
+
    - Go to [Azure DevOps](https://dev.azure.com/matthiasbuchhorn/avm-alz-min)
 
 2. **Create GitHub Service Connection**:
@@ -58,6 +59,7 @@ This method uses GitHub as the source of truth while running Azure DevOps pipeli
 ### Step 2: Configure Branch Policies
 
 1. **GitHub Branch Protection**:
+
    - Go to repository **Settings** → **Branches**
    - Protect `main` branch:
      ```yaml
@@ -107,6 +109,7 @@ gh api repos/ma3u/azm-alz-min/branches/main/protection \
 ### Step 1: Create Azure DevOps Repository
 
 1. **Create Private Repository**:
+
    - Go to **Repos** in Azure DevOps
    - Create new repository: `avm-alz-min-private`
 

@@ -16,24 +16,29 @@ This directory contains scripts to help validate and test Azure Landing Zone tem
 ### What it validates
 
 1. **Prerequisites Check**
+
    - Azure CLI (`az`)
    - jq (JSON processor)
    - Terraform (`terraform1.9` or `terraform`)
    - Pre-commit hooks (`pre-commit`)
 
 2. **Template Validation**
+
    - Bicep template compilation (`az bicep build`)
    - Terraform template validation (`terraform validate`)
 
 3. **AVM Module Versions**
+
    - Checks latest versions of common AVM modules
    - Validates against Microsoft Container Registry
 
 4. **Pre-commit Hooks**
+
    - Runs essential hooks: YAML, JSON, Bicep lint, Terraform validate
    - Reports current hook status
 
 5. **Template Consistency**
+
    - Verifies working templates exist
    - Confirms template file structure
 

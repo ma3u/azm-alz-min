@@ -64,15 +64,18 @@ az ad sp create-for-rbac \
 ### Step 2: Create Azure Service Connection
 
 1. **Navigate to Azure DevOps**:
+
    - Go to [Azure DevOps](https://dev.azure.com/matthiasbuchhorn/avm-alz-min)
 
 2. **Create Service Connection**:
+
    - Go to **Project Settings** → **Service connections**
    - Click **New service connection**
    - Select **Azure Resource Manager**
    - Choose **Service principal (manual)**
 
 3. **Configure Connection**:
+
    - **Connection Name**: `azure-service-connection-avm-alz-min`
    - **Subscription ID**: Your Azure subscription ID
    - **Subscription Name**: Your subscription name
@@ -88,6 +91,7 @@ az ad sp create-for-rbac \
 ### Step 3: Create Variable Groups
 
 1. **Navigate to Library**:
+
    - Go to **Pipelines** → **Library**
    - Click **+ Variable group**
 
@@ -124,15 +128,18 @@ az ad sp create-for-rbac \
 ### Step 4: Create Environments
 
 1. **Navigate to Environments**:
+
    - Go to **Pipelines** → **Environments**
    - Click **New environment**
 
 2. **Create Development Environment**:
+
    - **Name**: `avm-alz-min-dev`
    - **Description**: Development environment for Azure Landing Zone
    - **Resource**: None (we'll add Azure resources later)
 
 3. **Create Production Environment**:
+
    - **Name**: `avm-alz-min-prod`
    - **Description**: Production environment for Azure Landing Zone
    - **Resource**: None
@@ -147,6 +154,7 @@ az ad sp create-for-rbac \
 ### Step 5: Connect GitHub Repository
 
 1. **Method 1: GitHub Integration (Recommended)**:
+
    - Go to **Project Settings** → **GitHub connections**
    - Click **Connect your GitHub account**
    - Authorize Azure DevOps to access your GitHub account
@@ -160,20 +168,24 @@ az ad sp create-for-rbac \
 ### Step 6: Create Pipeline
 
 1. **Navigate to Pipelines**:
+
    - Go to **Pipelines** → **Pipelines**
    - Click **New pipeline**
 
 2. **Select Repository**:
+
    - Choose **GitHub**
    - Select repository: `ma3u/azm-alz-min`
    - Authorize if prompted
 
 3. **Configure Pipeline**:
+
    - Choose **Existing Azure Pipelines YAML file**
    - Select branch: `main`
    - Select path: `/pipelines/azure-pipelines.yml`
 
 4. **Update Variables**:
+
    - Before running, update `pipelines/variables/common.yml`:
 
    ```yaml
@@ -191,6 +203,7 @@ az ad sp create-for-rbac \
 ### Branch Protection
 
 1. **Repository Settings** (on GitHub):
+
    - Go to repository **Settings** → **Branches**
    - Add rule for `main` branch:
      - Require pull request reviews
@@ -251,6 +264,7 @@ az role assignment create \
 ### Pipeline Notifications
 
 1. **Email Notifications**:
+
    - Go to **Project Settings** → **Notifications**
    - Subscribe to build completion events
    - Configure for build failures
@@ -299,6 +313,7 @@ az role assignment create \
    ```
 
 2. **Pipeline Fails at Deployment**:
+
    - Check resource group exists
    - Verify service principal has Contributor role
    - Ensure subscription ID is correct

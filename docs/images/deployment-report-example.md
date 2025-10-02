@@ -17,7 +17,9 @@
     "securityScore": 85,
     "deploymentDurationMinutes": 1
   },
-  "recommendations": ["Sandbox deployment complete - costs should be $18-30/month for basic ALZ"]
+  "recommendations": [
+    "Sandbox deployment complete - costs should be $18-30/month for basic ALZ"
+  ]
 }
 ```
 
