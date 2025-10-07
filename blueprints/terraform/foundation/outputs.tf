@@ -188,7 +188,7 @@ output "connection_info" {
       subscription_id    = data.azurerm_subscription.current.subscription_id
       region             = var.location
       environment        = var.environment
-      ssh_key_configured = "SSH keys available in .secrets/ directory"
+      ssh_auth_configured = "SSH authentication available in .secrets/ directory"
       terraform_version  = "Native Azure Provider (v4.9+)"
     }
   }
