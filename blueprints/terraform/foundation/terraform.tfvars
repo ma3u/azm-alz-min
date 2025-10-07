@@ -9,7 +9,7 @@ enable_bastion           = false
 
 # AKS Configuration (enabled for deployment with approved VM sizes)
 enable_aks                = true
-aks_kubernetes_version    = "1.31"
+aks_kubernetes_version    = "1.27"
 aks_system_node_count     = 2
 aks_system_node_size      = "Standard_d4s_v5"  # Approved enterprise VM size (recommended)
 enable_aks_user_node_pool = true

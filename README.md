@@ -13,6 +13,8 @@ This repository demonstrates **AI-powered GitOps practices** for Azure Landing Z
 Based on the [LinkedIn article](https://www.linkedin.com/pulse/ai-powered-gitops-azure-landing-zones-verified-matthias-buchhorn-roth-hqlke/?trackingId=28d0MXV%2Bux4OpZszqzWQxw%3D%3D), this demonstrates modern infrastructure patterns that enterprise teams can adopt immediately.
 
 > **📋 Repository Update (Sept 2025)**: This repository has been reorganized for better structure and usability. Documentation moved from nested folders to `docs/`, deployment reports now include interactive HTML dashboards in `deployment-reports/`, and production-ready templates are consolidated in `blueprints/` with development work in `infra/`. All links have been updated accordingly.
+>
+> **🔄 Policy Compliance Update (Oct 2025)**: Updated configurations for DEP policy compliance. App Service Plans now use B1 SKU (development-appropriate), AKS updated to latest stable version (1.27), and deployment tags updated for GitHub Actions integration. See [Policy Compliance Update](blueprints/terraform/foundation/POLICY-COMPLIANCE-UPDATE.md) for details.
 
 ## 📋 Table of Contents
 

@@ -39,7 +39,7 @@ locals {
     Organization = var.organization_prefix
     Pattern      = "ALZ-Sandbox-Simple"
     IaC          = "Terraform-AVM-Simple"
-    DeployedBy   = "Warp-AI-Sandbox"
+    DeployedBy   = "GithubAction-Sandbox"
     Purpose      = "Sandbox-Testing"
   }
 
@@ -277,7 +277,7 @@ resource "azurerm_service_plan" "main" {
   resource_group_name = azurerm_resource_group.spoke.name
   location            = var.location
   os_type             = "Linux"
-  sku_name            = "EP1"
+  sku_name            = "B1"
 
   tags = local.common_tags
 }
