@@ -153,7 +153,7 @@ resource "azurerm_subnet" "spoke_aks" {
   name                 = "snet-aks"
   resource_group_name  = azurerm_resource_group.spoke.name
   virtual_network_name = azurerm_virtual_network.spoke.name
-  address_prefixes     = ["10.1.20.0/22"]  # Large subnet for AKS nodes (1024 IPs)
+  address_prefixes     = ["10.1.20.0/22"] # Large subnet for AKS nodes (1024 IPs)
 }
 
 # =======================
@@ -335,7 +335,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   resource_group_name = azurerm_resource_group.spoke.name
   dns_prefix          = "aks-${var.organization_prefix}-${var.environment}-${random_string.unique.result}"
   kubernetes_version  = var.aks_kubernetes_version
-  sku_tier           = "Free"  # Start with Free tier to avoid policy issues
+  sku_tier            = "Free" # Start with Free tier to avoid policy issues
 
   # Private cluster configuration
   private_cluster_enabled             = true
@@ -345,7 +345,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   # Minimal security configurations
   role_based_access_control_enabled = true
   local_account_disabled            = false
-  run_command_enabled               = true   # Enable for initial setup
+  run_command_enabled               = true # Enable for initial setup
   # disk_encryption_set_id            = null
 
   # System-assigned managed identity
@@ -372,7 +372,7 @@ resource "azurerm_kubernetes_cluster" "main" {
     # Security enhancements for policy compliance
     # enable_host_encryption     = false  # Available in certain regions
     # enable_node_public_ip      = false  # Controlled by subnet configuration
-    kubelet_disk_type           = "OS"
+    kubelet_disk_type = "OS"
 
     # Taints and labels for system workloads
     node_labels = {
@@ -389,12 +389,12 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   # Network configuration - Enhanced for enterprise compliance
   network_profile {
-    network_plugin      = "azure"
-    network_policy      = "azure"  # Use Azure Network Policy for security
-    dns_service_ip      = "10.2.0.10"
-    service_cidr        = "10.2.0.0/16"
-    load_balancer_sku   = "standard"
-    outbound_type       = "loadBalancer"
+    network_plugin    = "azure"
+    network_policy    = "azure" # Use Azure Network Policy for security
+    dns_service_ip    = "10.2.0.10"
+    service_cidr      = "10.2.0.0/16"
+    load_balancer_sku = "standard"
+    outbound_type     = "loadBalancer"
 
     # Load balancer configuration for private cluster
     load_balancer_profile {
@@ -421,7 +421,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   # }
 
   # Simplified configuration - avoid policy triggers
-  azure_policy_enabled = false  # Disable to avoid policy conflicts initially
+  azure_policy_enabled = false # Disable to avoid policy conflicts initially
 
   # Basic image management (commented out to avoid policy issues)
   # image_cleaner_enabled        = true
@@ -429,7 +429,7 @@ resource "azurerm_kubernetes_cluster" "main" {
 
   # Workload identity (may trigger policies - disabled initially)
   workload_identity_enabled = false
-  oidc_issuer_enabled      = false
+  oidc_issuer_enabled       = false
 
   # Basic storage profile
   # storage_profile {
@@ -465,7 +465,7 @@ resource "azurerm_kubernetes_cluster" "main" {
   # Key Vault Secrets Provider
   key_vault_secrets_provider {
     secret_rotation_enabled  = true
-    secret_rotation_interval = "2m"  # pragma: allowlist secret
+    secret_rotation_interval = "2m" # pragma: allowlist secret
   }
 
   tags = local.common_tags
@@ -503,16 +503,16 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
 
   # Auto-scaling configuration
   auto_scaling_enabled = true
-  min_count           = 1
-  max_count           = 10
-  max_pods            = 30
+  min_count            = 1
+  max_count            = 10
+  max_pods             = 30
 
   # Storage configuration with security enhancements
-  os_disk_size_gb      = 128
-  os_disk_type         = "Managed"
-  os_type              = "Linux"
-  os_sku               = "Ubuntu"
-  kubelet_disk_type    = "OS"
+  os_disk_size_gb   = 128
+  os_disk_type      = "Managed"
+  os_type           = "Linux"
+  os_sku            = "Ubuntu"
+  kubelet_disk_type = "OS"
 
   # Security enhancements (commented out - controlled by subnet/cluster config)
   # enable_host_encryption = false  # Can be enabled if supported in region
