@@ -4,16 +4,16 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - "infra/bicep/sandbox/**/*.bicep"
-      - "infra/bicep/sandbox/**/*.bicepparam"
-      - "infra/bicep/sandbox/**/*.json"
+      - "blueprints/bicep/**/*.bicep"
+      - "blueprints/bicep/**/*.bicepparam"
+      - "blueprints/bicep/**/*.json"
       - ".github/workflows/bicep-alz-sandbox.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - "infra/bicep/sandbox/**/*.bicep"
-      - "infra/bicep/sandbox/**/*.bicepparam"
-      - "infra/bicep/sandbox/**/*.json"
+      - "blueprints/bicep/**/*.bicep"
+      - "blueprints/bicep/**/*.bicepparam"
+      - "blueprints/bicep/**/*.json"
   workflow_dispatch:
     inputs:
       environment:
@@ -77,30 +77,37 @@ jobs:
           MAIN_TEMPLATE=""
           PARAMETERS_FILE=""
 
-          if [[ -f "infra/bicep/sandbox/main.bicep" ]]; then
-            MAIN_TEMPLATE="infra/bicep/sandbox/main.bicep"
-            echo "✅ Found main template: $MAIN_TEMPLATE"
-          elif [[ -f "infra/bicep/sandbox/simple-sandbox.bicep" ]]; then
-            MAIN_TEMPLATE="infra/bicep/sandbox/simple-sandbox.bicep"
-            echo "✅ Found simple sandbox template: $MAIN_TEMPLATE"
+          # ✅ FIXED: Updated to use blueprints directory structure
+          if [[ -f "blueprints/bicep/hub-spoke/main.bicep" ]]; then
+            MAIN_TEMPLATE="blueprints/bicep/hub-spoke/main.bicep"
+            echo "✅ Found hub-spoke template: $MAIN_TEMPLATE"
+          elif [[ -f "blueprints/bicep/foundation/main.bicep" ]]; then
+            MAIN_TEMPLATE="blueprints/bicep/foundation/main.bicep"
+            echo "✅ Found foundation template: $MAIN_TEMPLATE"
           else
-            echo "🔍 Searching for any .bicep files in sandbox..."
-            MAIN_TEMPLATE=$(find infra/bicep/sandbox -name "*.bicep" -type f | head -1)
+            echo "🔍 Searching for any .bicep files in blueprints..."
+            MAIN_TEMPLATE=$(find blueprints/bicep -name "*.bicep" -type f | head -1)
           fi
 
           if [[ -z "$MAIN_TEMPLATE" ]]; then
-            echo "❌ No Bicep templates found in infra/bicep/sandbox/"
+            echo "❌ No Bicep templates found in blueprints/bicep/"
             echo "templates_found=false" >> $GITHUB_OUTPUT
             exit 0
           fi
 
           # Find corresponding parameters file
+          TEMPLATE_DIR=$(dirname "$MAIN_TEMPLATE")
           TEMPLATE_NAME=$(basename "$MAIN_TEMPLATE" .bicep)
-          if [[ -f "infra/bicep/sandbox/${TEMPLATE_NAME}.parameters.json" ]]; then
-            PARAMETERS_FILE="infra/bicep/sandbox/${TEMPLATE_NAME}.parameters.json"
+
+          # Check for managed identity parameters file first (preferred)
+          if [[ -f "${TEMPLATE_DIR}/main.parameters.managed-identity.json" ]]; then
+            PARAMETERS_FILE="${TEMPLATE_DIR}/main.parameters.managed-identity.json"
+            echo "✅ Found managed identity parameters file: $PARAMETERS_FILE"
+          elif [[ -f "${TEMPLATE_DIR}/${TEMPLATE_NAME}.parameters.json" ]]; then
+            PARAMETERS_FILE="${TEMPLATE_DIR}/${TEMPLATE_NAME}.parameters.json"
             echo "✅ Found parameters file: $PARAMETERS_FILE"
-          elif [[ -f "infra/bicep/sandbox/parameters.json" ]]; then
-            PARAMETERS_FILE="infra/bicep/sandbox/parameters.json"
+          elif [[ -f "${TEMPLATE_DIR}/parameters.json" ]]; then
+            PARAMETERS_FILE="${TEMPLATE_DIR}/parameters.json"
             echo "✅ Found generic parameters file: $PARAMETERS_FILE"
           else
             echo "⚠️ No parameters file found, will deploy with parameter prompts"

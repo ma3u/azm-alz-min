@@ -4,16 +4,16 @@ on:
   push:
     branches: [main, develop]
     paths:
-      - "infra/terraform/**/*.tf"
-      - "infra/terraform/**/*.tfvars"
-      - "infra/terraform/**/*.tfvars.json"
+      - "blueprints/terraform/**/*.tf"
+      - "blueprints/terraform/**/*.tfvars"
+      - "blueprints/terraform/**/*.tfvars.json"
       - ".github/workflows/terraform-alz-deployment.yml"
   pull_request:
     branches: [main, develop]
     paths:
-      - "infra/terraform/**/*.tf"
-      - "infra/terraform/**/*.tfvars"
-      - "infra/terraform/**/*.tfvars.json"
+      - "blueprints/terraform/**/*.tf"
+      - "blueprints/terraform/**/*.tfvars"
+      - "blueprints/terraform/**/*.tfvars.json"
   workflow_dispatch:
     inputs:
       environment:
@@ -71,7 +71,7 @@ jobs:
         id: discover-terraform
         run: |
           # Find all Terraform root modules (directories with .tf files)
-          tf_dirs=$(find infra/terraform -name "*.tf" -type f | xargs dirname | sort -u | tr '\n' ' ')
+          tf_dirs=$(find blueprints/terraform -name "*.tf" -type f | xargs dirname | sort -u | tr '\n' ' ')
           echo "directories=$tf_dirs" >> $GITHUB_OUTPUT
           echo "Found Terraform directories: $tf_dirs"
 
@@ -179,8 +179,8 @@ jobs:
         run: |
           echo "📋 Creating Terraform execution plans..."
 
-          # Focus on the simple-sandbox for now (can be extended)
-          WORK_DIR="infra/terraform/simple-sandbox"
+          # Focus on the foundation template for now (can be extended)
+          WORK_DIR="blueprints/terraform/foundation"
 
           if [[ ! -d "$WORK_DIR" ]]; then
             echo "❌ Terraform directory not found: $WORK_DIR"
@@ -230,7 +230,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: tfplan
-          path: infra/terraform/simple-sandbox/tfplan
+          path: blueprints/terraform/foundation/tfplan
           retention-days: 5
 
       - name: 📝 Comment PR with Plan
@@ -292,12 +292,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: tfplan
-          path: infra/terraform/simple-sandbox/
+          path: blueprints/terraform/foundation/
 
       - name: 🚀 Terraform Apply
         id: tf-apply
         run: |
-          cd infra/terraform/simple-sandbox
+          cd blueprints/terraform/foundation
 
           # Initialize
           terraform init
@@ -328,7 +328,7 @@ jobs:
       - name: 📊 Terraform Output
         id: tf-output
         run: |
-          cd infra/terraform/simple-sandbox
+          cd blueprints/terraform/foundation
 
           echo "📊 Terraform Outputs:"
           terraform output -json > terraform-outputs.json
@@ -345,7 +345,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: terraform-outputs
-          path: infra/terraform/simple-sandbox/terraform-outputs.json
+          path: blueprints/terraform/foundation/terraform-outputs.json
           retention-days: 30
 
       - name: 📊 Deployment Summary
@@ -395,7 +395,7 @@ jobs:
 
       - name: 🗑️ Terraform Destroy
         run: |
-          cd infra/terraform/simple-sandbox
+          cd blueprints/terraform/foundation
 
           # Initialize
           terraform init

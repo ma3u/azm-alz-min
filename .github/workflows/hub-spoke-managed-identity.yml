@@ -1,0 +1,426 @@
+name: Hub-Spoke Managed Identity Deployment
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "blueprints/bicep/hub-spoke/**/*.bicep"
+      - "blueprints/bicep/hub-spoke/**/*.json"
+      - ".github/workflows/hub-spoke-managed-identity.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "blueprints/bicep/hub-spoke/**/*.bicep"
+      - "blueprints/bicep/hub-spoke/**/*.json"
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target Environment"
+        required: true
+        default: "sandbox"
+        type: choice
+        options:
+          - sandbox
+          - dev
+          - test
+      enable_virtual_machine:
+        description: "Enable Virtual Machine (increases cost ~$30/month)"
+        required: false
+        default: false
+        type: boolean
+      destroy_after_test:
+        description: "Destroy resources after deployment (for cost control)"
+        required: false
+        default: false
+        type: boolean
+
+env:
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+jobs:
+  validate-managed-identity-template:
+    name: 🔧 Validate Hub-Spoke with Managed Identity
+    runs-on: ubuntu-latest
+    outputs:
+      template_valid: ${{ steps.validation.outputs.template_valid }}
+      estimated_cost: ${{ steps.cost-estimate.outputs.estimated_cost }}
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 📦 Install Bicep CLI
+        run: |
+          az bicep install
+          az bicep upgrade
+          echo "Bicep version: $(az bicep version)"
+
+      - name: 🔨 Build and Validate Template
+        id: validation
+        run: |
+          TEMPLATE="blueprints/bicep/hub-spoke/main.bicep"
+          PARAMS="blueprints/bicep/hub-spoke/main.parameters.managed-identity.json"
+
+          echo "🔧 Building template: $TEMPLATE"
+          az bicep build --file "$TEMPLATE"
+
+          echo "🔍 Validating template with managed identity parameters..."
+          if az deployment sub validate \
+            --location westeurope \
+            --template-file "$TEMPLATE" \
+            --parameters @"$PARAMS" \
+            --verbose; then
+            echo "✅ Template validation successful"
+            echo "template_valid=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Template validation failed"
+            echo "template_valid=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: 🛡️ Security and Managed Identity Validation
+        run: |
+          TEMPLATE="blueprints/bicep/hub-spoke/main.bicep"
+          echo "🛡️ Validating managed identity configuration..."
+
+          # Check for managed identity configurations
+          if grep -q "managedIdentities:" "$TEMPLATE"; then
+            echo "✅ Managed identities found in template"
+          else
+            echo "❌ No managed identities configured"
+            exit 1
+          fi
+
+          # Check for system-assigned managed identities
+          if grep -q "systemAssigned: true" "$TEMPLATE"; then
+            echo "✅ System-assigned managed identities configured"
+          else
+            echo "⚠️ No system-assigned managed identities found"
+          fi
+
+          # Check for RBAC authorization (Key Vault)
+          if grep -q "enableRbacAuthorization: true" "$TEMPLATE"; then
+            echo "✅ RBAC authorization enabled for Key Vault"
+          else
+            echo "⚠️ RBAC authorization may not be configured"
+          fi
+
+          # Check for security settings
+          security_checks=0
+
+          if grep -q "httpsOnly: true" "$TEMPLATE"; then
+            echo "✅ HTTPS enforcement configured"
+            security_checks=$((security_checks + 1))
+          fi
+
+          if grep -q "acrAdminUserEnabled: false" "$TEMPLATE"; then
+            echo "✅ Container Registry admin user disabled"
+            security_checks=$((security_checks + 1))
+          fi
+
+          if grep -q "enableSoftDelete: true" "$TEMPLATE"; then
+            echo "✅ Soft delete enabled"
+            security_checks=$((security_checks + 1))
+          fi
+
+          echo "🔐 Security checks passed: $security_checks"
+
+      - name: 💰 Cost Estimation
+        id: cost-estimate
+        run: |
+          VM_ENABLED="${{ github.event.inputs.enable_virtual_machine || 'false' }}"
+
+          # Base costs for hub-spoke template
+          APP_SERVICE_COST=13    # B1 Basic
+          STORAGE_COST=2         # Standard_LRS
+          KEY_VAULT_COST=3       # Standard
+          CONTAINER_REGISTRY_COST=5  # Basic
+          LOG_ANALYTICS_COST=3   # 30 days retention
+          NETWORKING_COST=1      # VNet peering
+
+          BASE_COST=$((APP_SERVICE_COST + STORAGE_COST + KEY_VAULT_COST + CONTAINER_REGISTRY_COST + LOG_ANALYTICS_COST + NETWORKING_COST))
+
+          if [[ "$VM_ENABLED" == "true" ]]; then
+            VM_COST=30  # Standard_B2s
+            TOTAL_COST=$((BASE_COST + VM_COST))
+            echo "💰 Estimated monthly cost: \$$TOTAL_COST USD (with VM)"
+          else
+            TOTAL_COST=$BASE_COST
+            echo "💰 Estimated monthly cost: \$$TOTAL_COST USD (without VM)"
+          fi
+
+          echo "estimated_cost=$TOTAL_COST" >> $GITHUB_OUTPUT
+
+          # Cost alerts
+          if [[ $TOTAL_COST -gt 50 ]]; then
+            echo "⚠️ Cost alert: Monthly estimate exceeds $50 USD"
+            echo "::warning::High infrastructure costs detected: \$${TOTAL_COST}/month"
+          fi
+
+      - name: 📊 What-If Analysis
+        if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+        run: |
+          TEMPLATE="blueprints/bicep/hub-spoke/main.bicep"
+          PARAMS="blueprints/bicep/hub-spoke/main.parameters.managed-identity.json"
+          ENV="${{ github.event.inputs.environment || 'sandbox' }}"
+          VM_ENABLED="${{ github.event.inputs.enable_virtual_machine || 'false' }}"
+
+          echo "📊 Running What-If analysis..."
+          echo "Environment: $ENV"
+          echo "VM Enabled: $VM_ENABLED"
+
+          # Override VM parameter if specified
+          OVERRIDE_PARAMS=""
+          if [[ "$VM_ENABLED" == "true" ]]; then
+            OVERRIDE_PARAMS="enableVirtualMachine=true"
+          else
+            OVERRIDE_PARAMS="enableVirtualMachine=false"
+          fi
+
+          az deployment sub what-if \
+            --location westeurope \
+            --template-file "$TEMPLATE" \
+            --parameters @"$PARAMS" \
+            --parameters environment="$ENV" $OVERRIDE_PARAMS \
+            --verbose
+
+  deploy-hub-spoke-managed-identity:
+    name: 🚀 Deploy Hub-Spoke with Managed Identity
+    runs-on: ubuntu-latest
+    needs: validate-managed-identity-template
+    if: |
+      needs.validate-managed-identity-template.outputs.template_valid == 'true' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch')
+    environment:
+      name: ${{ github.event.inputs.environment || 'sandbox' }}
+      url: https://portal.azure.com
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 📦 Install Bicep CLI
+        run: |
+          az bicep install
+          az bicep upgrade
+
+      - name: 🚀 Deploy Hub-Spoke Infrastructure
+        id: deploy
+        run: |
+          TEMPLATE="blueprints/bicep/hub-spoke/main.bicep"
+          PARAMS="blueprints/bicep/hub-spoke/main.parameters.managed-identity.json"
+          ENV="${{ github.event.inputs.environment || 'sandbox' }}"
+          VM_ENABLED="${{ github.event.inputs.enable_virtual_machine || 'false' }}"
+          DEPLOYMENT_NAME="hub-spoke-mi-$(date +%Y%m%d-%H%M%S)"
+
+          echo "🚀 Deploying Hub-Spoke with Managed Identity..."
+          echo "Template: $TEMPLATE"
+          echo "Parameters: $PARAMS"
+          echo "Environment: $ENV"
+          echo "VM Enabled: $VM_ENABLED"
+          echo "Deployment: $DEPLOYMENT_NAME"
+
+          # Deploy with parameter overrides
+          OVERRIDE_PARAMS=""
+          if [[ "$VM_ENABLED" == "true" ]]; then
+            OVERRIDE_PARAMS="enableVirtualMachine=true"
+          else
+            OVERRIDE_PARAMS="enableVirtualMachine=false"
+          fi
+
+          if az deployment sub create \
+            --location westeurope \
+            --name "$DEPLOYMENT_NAME" \
+            --template-file "$TEMPLATE" \
+            --parameters @"$PARAMS" \
+            --parameters environment="$ENV" $OVERRIDE_PARAMS \
+            --verbose; then
+            echo "✅ Deployment successful"
+            echo "deployment_name=$DEPLOYMENT_NAME" >> $GITHUB_OUTPUT
+            echo "deployment_success=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Deployment failed"
+            echo "deployment_success=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: 📊 Extract Deployment Outputs
+        if: steps.deploy.outputs.deployment_success == 'true'
+        id: outputs
+        run: |
+          DEPLOYMENT_NAME="${{ steps.deploy.outputs.deployment_name }}"
+
+          echo "📊 Extracting deployment outputs..."
+          az deployment sub show \
+            --name "$DEPLOYMENT_NAME" \
+            --query 'properties.outputs' \
+            --output json > deployment-outputs.json
+
+          # Display key information
+          echo "🔑 Key Vault:"
+          jq -r '.keyVaultName.value // "Not deployed"' deployment-outputs.json
+
+          echo "🌐 Web App:"
+          jq -r '.webAppDefaultHostname.value // "Not deployed"' deployment-outputs.json
+
+          echo "🐳 Container Registry:"
+          jq -r '.containerRegistryName.value // "Not deployed"' deployment-outputs.json
+
+          echo "💻 Virtual Machine:"
+          if jq -e '.virtualMachineSystemAssignedMIPrincipalId.value' deployment-outputs.json > /dev/null; then
+            echo "Virtual Machine deployed with managed identity"
+          else
+            echo "Virtual Machine not deployed"
+          fi
+
+          # Extract managed identity information
+          echo "🔐 Managed Identity Principal IDs:"
+          echo "Web App: $(jq -r '.webAppSystemAssignedMIPrincipalId.value // "N/A"' deployment-outputs.json)"
+          echo "Storage: $(jq -r '.storageAccountSystemAssignedMIPrincipalId.value // "N/A"' deployment-outputs.json)"
+          echo "Container Registry: $(jq -r '.containerRegistrySystemAssignedMIPrincipalId.value // "N/A"' deployment-outputs.json)"
+          echo "Virtual Machine: $(jq -r '.virtualMachineSystemAssignedMIPrincipalId.value // "N/A"' deployment-outputs.json)"
+
+      - name: 🧪 Test Managed Identity Configuration
+        if: steps.deploy.outputs.deployment_success == 'true'
+        run: |
+          echo "🧪 Testing managed identity configuration..."
+
+          # Get resource group names
+          HUB_RG=$(jq -r '.hubResourceGroupName.value' deployment-outputs.json)
+          SPOKE_RG=$(jq -r '.spokeResourceGroupName.value' deployment-outputs.json)
+
+          echo "Hub Resource Group: $HUB_RG"
+          echo "Spoke Resource Group: $SPOKE_RG"
+
+          # Check Web App managed identity
+          WEB_APP_NAME=$(jq -r '.webAppDefaultHostname.value' deployment-outputs.json | cut -d'.' -f1)
+          if [[ "$WEB_APP_NAME" != "null" && "$WEB_APP_NAME" != "Not deployed" ]]; then
+            echo "🌐 Checking Web App managed identity..."
+            az webapp identity show \
+              --name "$WEB_APP_NAME" \
+              --resource-group "$SPOKE_RG" \
+              --query '{type:type, principalId:principalId}' \
+              --output table || echo "Web App identity check skipped"
+          fi
+
+          # Check Key Vault RBAC configuration
+          KV_NAME=$(jq -r '.keyVaultName.value' deployment-outputs.json)
+          if [[ "$KV_NAME" != "null" && "$KV_NAME" != "Not deployed" ]]; then
+            echo "🔑 Checking Key Vault RBAC assignments..."
+            az role assignment list \
+              --scope "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/$HUB_RG/providers/Microsoft.KeyVault/vaults/$KV_NAME" \
+              --query '[].{principalName:principalName, roleDefinitionName:roleDefinitionName}' \
+              --output table || echo "Key Vault RBAC check skipped"
+          fi
+
+          # Test resource connectivity
+          echo "🔗 Testing resource connectivity..."
+
+          # Test Web App
+          WEB_APP_URL=$(jq -r '.webAppDefaultHostname.value' deployment-outputs.json)
+          if [[ "$WEB_APP_URL" != "null" && "$WEB_APP_URL" != "Not deployed" ]]; then
+            if curl -s -I "https://$WEB_APP_URL" | grep -q "200\|301\|302"; then
+              echo "✅ Web App is accessible: $WEB_APP_URL"
+            else
+              echo "⚠️ Web App may not be ready yet: $WEB_APP_URL"
+            fi
+          fi
+
+      - name: 💾 Upload Deployment Artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: hub-spoke-managed-identity-deployment-${{ github.run_number }}
+          path: |
+            deployment-outputs.json
+          retention-days: 30
+
+      - name: 📊 Deployment Summary
+        if: always()
+        run: |
+          echo "## 🎉 Hub-Spoke Managed Identity Deployment" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment || 'sandbox' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**VM Enabled:** ${{ github.event.inputs.enable_virtual_machine || 'false' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Estimated Cost:** \$${{ needs.validate-managed-identity-template.outputs.estimated_cost }}/month" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment:** ${{ steps.deploy.outputs.deployment_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔐 Managed Identity Features" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ System-assigned managed identities for all services" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Key Vault RBAC-based access" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Storage Account managed identity access" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Container Registry with managed identity" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.enable_virtual_machine }}" == "true" ]]; then
+            echo "- ✅ Virtual Machine with managed identity" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Resources" >> $GITHUB_STEP_SUMMARY
+          echo "- [Azure Portal](https://portal.azure.com)" >> $GITHUB_STEP_SUMMARY
+          echo "- [Cost Management](https://portal.azure.com/#blade/Microsoft_Azure_CostManagement/Menu/overview)" >> $GITHUB_STEP_SUMMARY
+
+  cleanup-test-resources:
+    name: 🗑️ Cleanup Test Resources
+    runs-on: ubuntu-latest
+    needs: [validate-managed-identity-template, deploy-hub-spoke-managed-identity]
+    if: |
+      always() &&
+      github.event.inputs.destroy_after_test == 'true' &&
+      needs.deploy-hub-spoke-managed-identity.result == 'success'
+    environment:
+      name: cleanup
+
+    steps:
+      - name: ⏱️ Wait Before Cleanup
+        run: |
+          echo "⏱️ Waiting 10 minutes for testing and validation..."
+          sleep 600
+
+      - name: 🔧 Setup Azure CLI
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🗑️ Cleanup Resources
+        run: |
+          ENV="${{ github.event.inputs.environment || 'sandbox' }}"
+          echo "🗑️ Cleaning up hub-spoke resources for environment: $ENV"
+
+          # Find and delete resource groups
+          rg_list=$(az group list --query "[?contains(name, 'alz') && contains(name, '$ENV')].name" --output tsv)
+
+          if [[ -n "$rg_list" ]]; then
+            echo "🗑️ Found resource groups to delete:"
+            echo "$rg_list"
+
+            while IFS= read -r rg_name; do
+              if [[ -n "$rg_name" ]]; then
+                echo "🗑️ Deleting resource group: $rg_name"
+                az group delete --name "$rg_name" --yes --no-wait
+              fi
+            done <<< "$rg_list"
+
+            echo "✅ Cleanup initiated for all resource groups"
+          else
+            echo "ℹ️ No resource groups found for cleanup"
+          fi
+
+      - name: 📊 Cleanup Summary
+        run: |
+          echo "## 🗑️ Resource Cleanup Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment || 'sandbox' }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Cleanup initiated" >> $GITHUB_STEP_SUMMARY
+          echo "**Note:** Resources are being deleted asynchronously" >> $GITHUB_STEP_SUMMARY

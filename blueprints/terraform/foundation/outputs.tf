@@ -108,6 +108,48 @@ output "private_dns_zone_acr_id" {
 }
 
 # =======================
+# AKS OUTPUTS
+# =======================
+
+output "aks_cluster_id" {
+  description = "Resource ID of the AKS cluster (if enabled)"
+  value       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].id : ""
+}
+
+output "aks_cluster_name" {
+  description = "Name of the AKS cluster (if enabled)"
+  value       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].name : ""
+}
+
+output "aks_cluster_fqdn" {
+  description = "FQDN of the AKS cluster (if enabled)"
+  value       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].fqdn : ""
+}
+
+output "aks_cluster_private_fqdn" {
+  description = "Private FQDN of the AKS cluster (if enabled)"
+  value       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].private_fqdn : ""
+}
+
+output "aks_kubelet_identity" {
+  description = "Kubelet identity of the AKS cluster (if enabled)"
+  value       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].kubelet_identity : []
+  sensitive   = true
+}
+
+output "aks_cluster_ca_certificate" {
+  description = "CA certificate of the AKS cluster (if enabled)"
+  value       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].kube_config[0].cluster_ca_certificate : ""
+  sensitive   = true
+}
+
+output "aks_kube_config" {
+  description = "Kube config for the AKS cluster (if enabled)"
+  value       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].kube_config_raw : ""
+  sensitive   = true
+}
+
+# =======================
 # CONNECTION INFORMATION FOR TESTING
 # =======================
 
@@ -128,9 +170,18 @@ output "connection_info" {
       private_endpoint       = var.enable_container_registry ? "Private endpoint in hub subnet (10.0.4.0/24)" : "N/A - Container Registry not enabled"
       authentication         = var.enable_container_registry ? "Managed Identity (Admin user disabled)" : "N/A - Container Registry not enabled"
     }
+    aks = {
+      cluster_name       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].name : "N/A - AKS not enabled"
+      private_fqdn       = var.enable_aks ? azurerm_kubernetes_cluster.main[0].private_fqdn : "N/A - AKS not enabled"
+      kubernetes_version = var.enable_aks ? azurerm_kubernetes_cluster.main[0].kubernetes_version : "N/A - AKS not enabled"
+      node_pools         = var.enable_aks ? "System (${var.aks_system_node_count} nodes) + User (${var.enable_aks_user_node_pool ? var.aks_user_node_count : 0} nodes)" : "N/A - AKS not enabled"
+      private_cluster    = var.enable_aks ? "Private cluster with Azure CNI" : "N/A - AKS not enabled"
+      monitoring         = var.enable_aks ? "Log Analytics + Microsoft Defender" : "N/A - AKS not enabled"
+    }
     networking = {
       hub_vnet        = azurerm_virtual_network.hub.name
       spoke_vnet      = azurerm_virtual_network.spoke.name
+      aks_subnet      = var.enable_aks ? "snet-aks (10.1.20.0/22)" : "N/A - AKS not enabled"
       bastion_enabled = var.enable_bastion
     }
     deployment = {
@@ -163,7 +214,10 @@ output "deployment_info" {
       "Web App with VNet integration",
       "Storage Account with security configurations",
       "Log Analytics workspace for monitoring",
-      "Azure Bastion for secure access (optional)"
+      "Azure Bastion for secure access (optional)",
+      "Azure Kubernetes Service with private cluster (optional)",
+      "AKS integration with ACR and Log Analytics",
+      "Auto-scaling node pools with security policies"
     ]
     benefits = [
       "Direct Azure provider resource control",
@@ -174,9 +228,11 @@ output "deployment_info" {
       "Direct access to all provider features"
     ]
     cost_estimation = {
-      minimal      = "~$2/month (networking only)"
-      standard     = "~$18/month (with ACR + Web App)"
-      with_bastion = "~$161/month (includes Azure Bastion)"
+      minimal        = "~$2/month (networking only)"
+      standard       = "~$18/month (with ACR + Web App)"
+      with_bastion   = "~$161/month (includes Azure Bastion)"
+      with_aks_basic = "~$150/month (with AKS 2+2 nodes)"
+      with_aks_full  = "~$300/month (with AKS + ACR + monitoring)"
     }
   }
 }
