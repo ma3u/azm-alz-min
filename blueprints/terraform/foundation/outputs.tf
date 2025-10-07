@@ -185,11 +185,11 @@ output "connection_info" {
       bastion_enabled = var.enable_bastion
     }
     deployment = {
-      subscription_id    = data.azurerm_subscription.current.subscription_id
-      region             = var.location
-      environment        = var.environment
+      subscription_id     = data.azurerm_subscription.current.subscription_id
+      region              = var.location
+      environment         = var.environment
       ssh_auth_configured = "SSH authentication available in .secrets/ directory"
-      terraform_version  = "Native Azure Provider (v4.9+)"
+      terraform_version   = "Native Azure Provider (v4.9+)"
     }
   }
 }
