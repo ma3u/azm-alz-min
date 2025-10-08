@@ -344,6 +344,23 @@ jobs:
               fi
             done
 
+            # Extract and import private DNS zones
+            existing_dns_zones=$(grep -oP '/privateDnsZones/\K[^"]*' apply_output.log | sort -u)
+            for dns_zone in $existing_dns_zones; do
+              if [[ "$dns_zone" == "privatelink.azurecr.io" ]]; then
+                echo "📥 Importing private DNS zone: $dns_zone"
+                terraform import 'azurerm_private_dns_zone.acr[0]' "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/rg-alz-tf-hub-sandbox/providers/Microsoft.Network/privateDnsZones/$dns_zone" || echo "⚠️ Import failed for DNS zone"
+              fi
+            done
+
+            # Extract and import other common resources
+            # Container registries
+            existing_acr=$(grep -oP '/registries/\K[^"]*' apply_output.log | sort -u)
+            for acr in $existing_acr; do
+              echo "📥 Importing container registry: $acr"
+              terraform import 'azurerm_container_registry.main[0]' "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/rg-alz-tf-hub-sandbox/providers/Microsoft.ContainerRegistry/registries/$acr" || echo "⚠️ Import failed for ACR"
+            done
+
             # Regenerate plan after imports and retry apply
             echo "🔄 Regenerating plan after imports..."
             terraform plan -var-file="terraform.tfvars" -out="tfplan-retry"
