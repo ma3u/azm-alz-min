@@ -176,7 +176,9 @@ jobs:
 
       - name: 📋 Terraform Plan
         id: tf-plan
+        shell: bash
         run: |
+          set -e
           echo "📋 Creating Terraform execution plans..."
 
           # Focus on the foundation template for now (can be extended)
@@ -198,10 +200,12 @@ jobs:
           echo "🏷️ Using workspace: $WORKSPACE"
           terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
 
-          # Plan the deployment
+          # Plan the deployment (temporarily disable exit on error for terraform plan)
           echo "📋 Creating execution plan..."
+          set +e
           plan_output=$(terraform plan -var-file="terraform.tfvars" -out="tfplan" -detailed-exitcode 2>&1)
           plan_exitcode=$?
+          set -e
 
           echo "$plan_output"
 
