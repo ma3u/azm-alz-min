@@ -344,9 +344,12 @@ jobs:
               fi
             done
 
-            # Retry the apply after imports
+            # Regenerate plan after imports and retry apply
+            echo "🔄 Regenerating plan after imports..."
+            terraform plan -var-file="terraform.tfvars" -out="tfplan-retry"
+
             echo "🔄 Retrying Terraform apply after imports..."
-            terraform apply tfplan
+            terraform apply tfplan-retry
             apply_exitcode=$?
           fi
 
