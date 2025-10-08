@@ -18,6 +18,7 @@ Based on the [LinkedIn article](https://www.linkedin.com/pulse/ai-powered-gitops
 
 ## 📋 Table of Contents
 
+- [🏗️ Hub and Spoke Network Architecture](#️-hub-and-spoke-network-architecture)
 - [⚡ Quick Start - Choose Your Path](#-quick-start---choose-your-path)
   - [🚀 Deploy Now (10 minutes)](#-deploy-now-10-minutes)
   - [📖 Learn First (Recommended)](#-learn-first-recommended)
@@ -40,6 +41,105 @@ Based on the [LinkedIn article](https://www.linkedin.com/pulse/ai-powered-gitops
 - [📚 Related Documents](#-related-documents)
 - [📄 License](#-license)
 - [🙏 Acknowledgments](#-acknowledgments)
+
+---
+
+## 🏗️ Hub and Spoke Network Architecture
+
+**Enterprise-Grade Network Design with Modern Security**
+
+This Azure Landing Zone implements a **comprehensive hub and spoke network architecture** based on Zero Trust principles and modern Azure services. The design provides scalable, secure, and cost-effective infrastructure patterns for enterprise workloads.
+
+### 🎯 Architecture Overview
+
+```
+🏢 Hub Network (10.0.0.0/16)          🏪 Application Spoke (10.1.0.0/16)
+├── Azure Firewall Premium            ├── Application Gateway v2 (WAF)
+├── Private DNS Resolver               ├── Web Apps & Container Apps
+├── Entra Private Access               ├── Azure Functions Premium
+├── Log Analytics Workspace            ├── AKS Private Cluster
+└── Shared Services                    └── Data Services (PostgreSQL, ACR, Key Vault)
+
+                  ⭐ Zero Trust Access
+                  🔒 Private Endpoints
+                  📊 Centralized Monitoring
+```
+
+### 📋 **[Complete Hub-Spoke Design Documentation →](docs/hub-spoke-design.md)**
+
+**Key Features:**
+
+- ✅ **Zero Trust Networking** - Entra Private Access replaces traditional VPN
+- ✅ **Private Cluster Support** - Full AKS integration with CNI networking
+- ✅ **Modern Security** - Azure Firewall Premium with IDPS and TLS inspection
+- ✅ **Scalable Design** - Ready for multi-spoke expansion
+- ✅ **Cost Optimized** - Flexible SKUs for dev/test vs production
+- ✅ **AVM Based** - Uses Microsoft's verified modules for consistency
+
+### 🔧 Implementation Status
+
+| Component                | Bicep Status         | Terraform Status     | Configuration                     |
+| ------------------------ | -------------------- | -------------------- | --------------------------------- |
+| **Core Networking**      | ✅ Complete          | ✅ Complete          | Hub-Spoke VNets with peering      |
+| **Application Services** | ✅ Web Apps, Storage | ✅ Web Apps, Storage | App Service Plan, Storage Account |
+| **Container Services**   | ✅ ACR Premium       | ✅ ACR Premium       | Private endpoints enabled         |
+| **AKS Integration**      | ⚠️ Basic             | ✅ Complete          | Private cluster, dual node pools  |
+| **Security Services**    | ⚠️ Basic             | ⚠️ Basic             | Azure Firewall, NSGs              |
+| **Data Services**        | ⚠️ Basic             | ⚠️ Basic             | PostgreSQL Flexible, Key Vault    |
+| **Monitoring**           | ✅ Log Analytics     | ✅ Log Analytics     | Centralized logging               |
+| **Private Networking**   | ✅ Private DNS       | ✅ Private DNS       | Private endpoints, DNS zones      |
+
+**Legend:** ✅ Complete, ⚠️ Partial, ❌ Missing
+
+### 🎛️ Configuration Management
+
+**📋 [Complete Configuration Management Guide →](docs/configuration-management-guide.md)**
+
+**Centralized YAML Configuration** - Single source of truth for all deployments:
+
+```yaml
+# config/alz-components.yaml
+global:
+  environment: 'sandbox'
+  organizationPrefix: 'alz'
+  location: 'westeurope'
+
+containers:
+  aks:
+    enabled: true
+    version: '1.30'
+    privateCluster: true
+
+  containerRegistry:
+    enabled: true
+    sku: 'Premium' # Auto-adjusts to "Standard" for sandbox
+
+applications:
+  webApps:
+    enabled: true
+    servicePlan:
+      sku: 'B1' # Cost-optimized for sandbox
+```
+
+**Auto-Generate Deployment Files:**
+
+```bash
+# Generate both Bicep and Terraform configurations
+./scripts/parse-config.py config/alz-components.yaml --all
+
+# Output:
+# ✅ Generated Bicep parameters: main.parameters.generated.json
+# ✅ Generated Terraform variables: terraform.generated.tfvars
+# ✅ Generated status report: component-status.md
+```
+
+**Key Benefits:**
+
+- 🎯 **Single Source of Truth** - One file controls all deployments
+- 🔄 **Environment Overrides** - Different SKUs for dev/prod automatically
+- 💰 **Cost Optimization** - Automatic tier adjustments by environment
+- 📊 **Component Tracking** - Auto-generated status reports
+- ⚡ **Consistency** - Same config generates both Bicep and Terraform files
 
 ---
 
@@ -79,80 +179,38 @@ az deployment sub create \
 
 ### 📊 Deploy with Comprehensive Reporting (Recommended)
 
-**For detailed deployment insights and monitoring:**
+**Enhanced deployments with full observability and cost tracking:**
 
 ```bash
-# Deploy with full reporting, cost analysis, and security assessment
+# Deploy with automated reporting, cost analysis, and security assessment
 ./automation/scripts/deploy-with-report.sh
-
-# Or specify custom template
-./automation/scripts/deploy-with-report.sh \
-  blueprints/bicep/hub-spoke/main.bicep \
-  blueprints/bicep/hub-spoke/main.parameters.json
 ```
 
-**What you get:**
+**Key Features:**
 
-- 📋 **Pre-deployment validation** (prerequisites, pre-commit checks)
-- 🏗️ **Automated deployment** with full error handling
-- 📊 **Resource inventory** across all resource groups
-- 💰 **Cost analysis** with service breakdown
-- 🔒 **Security assessment** with recommendations
-- 📈 **HTML/JSON reports** for sharing and audit trails
-- 🔄 **Report history management** (keeps last 5 deployments)
+- 📋 Pre-deployment validation and resource inventory
+- 💰 Cost analysis with Infracost integration
+- 🔒 Security assessment and compliance scoring
+- 📊 Interactive HTML reports with historical tracking
 
 **📊 [View Live Deployment Reports Dashboard](https://ma3u.github.io/azm-alz-min/)**
 
-> **🌐 Live Dashboard**: Deployment reports are automatically published to GitHub Pages for easy sharing and viewing. The dashboard updates automatically when new reports are generated.
->
-> **💡 Alternative Viewing Methods**:
->
-> 1. **GitHub Pages**: https://ma3u.github.io/azm-alz-min/ (recommended - always up to date)
-> 2. **Local viewing**: `open deployment-reports/index.html` (opens in your browser)
-> 3. **Local server**: `cd deployment-reports && python3 -m http.server 8000` then visit `http://localhost:8000`
-> 4. **GitHub Pages**: Enable Pages in repository settings to share reports online
+📚 **Comprehensive Reporting Documentation:**
 
-**Report includes:**
-
-- ✅ Deployment status and timing
-- 📦 Complete resource inventory by type and location
-- 💰 Monthly cost estimates with service breakdown
-- 🔒 Security score (0-100) with findings and recommendations
-- 🧪 Testing commands for validation
-- 🧹 Cleanup commands for resource removal
-- 📈 Interactive charts and dashboards
-- 📋 Historical deployment tracking
-
-### 🌐 Automated GitHub Pages Deployment
-
-**Deploy reports to GitHub Pages automatically:**
-
-```bash
-# Deploy current reports to GitHub Pages (automated)
-./automation/scripts/deploy-reports-to-pages.sh
-
-# Check deployment status
-./automation/scripts/deploy-reports-to-pages.sh --status
-
-# Just check configuration
-./automation/scripts/deploy-reports-to-pages.sh --check
-```
-
-**Auto-deployment triggers:**
-
-- 🔄 **Automatic**: Every push to `main` branch with updated `deployment-reports/`
-- 🔘 **Manual**: Run the deployment script or trigger GitHub Actions workflow
-- 📊 **Live Updates**: Reports are automatically published to GitHub Pages within minutes
+- [Deployment Reporting Guide](docs/deployment-reporting-guide.md) - Complete setup and usage
+- [Cost Estimation Guide](docs/cost-estimation-guide.md) - Infracost integration and optimization
+- [GitHub Pages Setup](docs/deployment-reporting-guide.md#github-pages-deployment) - Auto-publishing reports
 
 ### 📖 Learn First (Recommended)
 
 **New to Azure Landing Zones?** Start here:
 
 - [Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md) - Understand the rules and requirements
+- [Hub-Spoke Design](docs/hub-spoke-design.md) - ⭐ **Core network architecture including AKS integration**
+- [Configuration Management Guide](docs/configuration-management-guide.md) - 🎛️ **Centralized component configuration**
 - [AVM Deployment Guide](docs/avm-deployment-guide.md) - Complete deployment walkthrough
 - [AKS Configuration Guide](docs/aks-configuration-guide.md) - Comprehensive AKS setup and configuration
 - [AKS Deployment Guide](docs/aks-deployment-guide.md) - Step-by-step AKS deployment walkthrough
-- [Hub-Spoke Design](docs/hub-spoke-design.md) - Network architecture including AKS integration
 - [Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) - Fix common issues
 
 ### 🔧 Developer Setup
@@ -302,6 +360,7 @@ terraform1.9 apply tfplan
 
 ### 🔧 Development & Quality
 
+- [🎛️ Configuration Management Guide](docs/configuration-management-guide.md) - ⭐ **Centralized YAML-based configuration system**
 - [🛠️ Pre-commit Hooks Guide](docs/pre-commit-hooks-guide.md) - Code quality automation
 - [🔐 GitHub Authentication Setup Guide](docs/github-auth-setup-guide.md) - Service Principal setup for GitHub Actions
 - [🏗️ Terraform Deployment Guide](docs/terraform-deployment-guide.md) - Terraform-specific procedures

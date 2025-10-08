@@ -13,8 +13,28 @@ on:
       - 'infracost-usage.yml'
       - '.github/workflows/infracost.yml'
 
-  # Allow manual runs
+  # Allow manual runs with options
   workflow_dispatch:
+    inputs:
+      terraform_path:
+        description: "Terraform directory to analyze"
+        required: false
+        default: "blueprints/terraform/foundation"
+        type: choice
+        options:
+          - blueprints/terraform/foundation
+          - blueprints/terraform/hub-spoke
+          - all
+      environment:
+        description: "Environment to analyze"
+        required: false
+        default: "sandbox"
+        type: choice
+        options:
+          - sandbox
+          - dev
+          - test
+          - prod
 
 env:
   INFRACOST_API_KEY: ${{ secrets.INFRACOST_API_KEY }}
@@ -24,9 +44,9 @@ jobs:
     name: 🧮 Terraform Cost Analysis
     runs-on: ubuntu-latest
 
-    # Only run for Terraform changes or manual dispatch
+    # Run for Terraform changes in PRs or manual dispatch
     if: >
-      contains(github.event.pull_request.changed_files, 'blueprints/terraform/') ||
+      (github.event_name == 'pull_request' && contains(github.event.pull_request.changed_files, 'blueprints/terraform/')) ||
       github.event_name == 'workflow_dispatch'
 
     permissions:
@@ -57,10 +77,26 @@ jobs:
 
       - name: 🎯 Terraform Init for Cost Analysis
         run: |
-          # Initialize all Terraform configurations for cost analysis
+          # Initialize Terraform configurations for cost analysis
           echo "🔧 Initializing Terraform configurations..."
 
-          for tf_dir in $(find blueprints/terraform -name "*.tf" -type f -exec dirname {} \; | sort -u); do
+          # Determine which directories to analyze
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TARGET_PATH="${{ github.event.inputs.terraform_path || 'blueprints/terraform/foundation' }}"
+            ENV="${{ github.event.inputs.environment || 'sandbox' }}"
+            echo "🎯 Manual run - analyzing: $TARGET_PATH for environment: $ENV"
+
+            if [[ "$TARGET_PATH" == "all" ]]; then
+              tf_dirs=$(find blueprints/terraform -name "*.tf" -type f -exec dirname {} \; | sort -u)
+            else
+              tf_dirs="$TARGET_PATH"
+            fi
+          else
+            echo "🔄 PR mode - analyzing all Terraform directories"
+            tf_dirs=$(find blueprints/terraform -name "*.tf" -type f -exec dirname {} \; | sort -u)
+          fi
+
+          for tf_dir in $tf_dirs; do
             if [[ -f "$tf_dir/main.tf" ]]; then
               echo "Initializing $tf_dir..."
               cd "$tf_dir"
@@ -126,6 +162,10 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Monthly Cost:** \$${TOTAL_MONTHLY_COST} USD" >> $GITHUB_STEP_SUMMARY
           echo "**Resources Analyzed:** ${RESOURCE_COUNT}" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "**Analysis Path:** ${{ github.event.inputs.terraform_path || 'blueprints/terraform/foundation' }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Environment:** ${{ github.event.inputs.environment || 'sandbox' }}" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Detailed Breakdown" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

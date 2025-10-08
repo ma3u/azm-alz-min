@@ -352,13 +352,75 @@ jobs:
           path: blueprints/terraform/foundation/terraform-outputs.json
           retention-days: 30
 
+      - name: 📊 Generate Deployment Report
+        id: deployment-report
+        run: |
+          cd blueprints/terraform/foundation
+
+          TIMESTAMP=$(date +"%Y%m%d-%H%M%S")
+          DEPLOYMENT_ID="tf-alz-deployment-${TIMESTAMP}"
+          REPORT_DIR="../../../deployment-reports/${TIMESTAMP}"
+
+          echo "📊 Generating deployment report: $DEPLOYMENT_ID"
+
+          # Create report directory
+          mkdir -p "$REPORT_DIR"/{deployment,resources,costs}
+
+          # Basic deployment info
+          echo '{"deployment_id": "'$DEPLOYMENT_ID'", "status": "succeeded", "timestamp": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'",' > "$REPORT_DIR/deployment/deployment-log.json"
+          echo '"template": "terraform", "environment": "${{ github.event.inputs.environment || 'sandbox' }}"}' >> "$REPORT_DIR/deployment/deployment-log.json"
+
+          # Resource inventory
+          az resource list --output json > "$REPORT_DIR/resources/resource-inventory.json" 2>/dev/null || echo '[]' > "$REPORT_DIR/resources/resource-inventory.json"
+          RESOURCE_COUNT=$(jq 'length' "$REPORT_DIR/resources/resource-inventory.json" 2>/dev/null || echo "0")
+
+          # Create simple HTML report using the existing deployment report script
+          ./automation/scripts/generate-deployment-report.sh "${{ github.event.inputs.environment || 'sandbox' }}" terraform || echo "Report generation script not available"
+
+          # Set outputs
+          echo "deployment_id=$DEPLOYMENT_ID" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "resource_count=$RESOURCE_COUNT" >> $GITHUB_OUTPUT
+
+          echo "✅ Deployment report generated"
+
+      - name: 📤 Commit Deployment Report
+        if: steps.deployment-report.outputs.timestamp != ''
+        run: |
+          # Configure Git
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+          # Commit the report if directory exists
+          if [[ -d "deployment-reports/${{ steps.deployment-report.outputs.timestamp }}" ]]; then
+            git add deployment-reports/${{ steps.deployment-report.outputs.timestamp }}/
+            git commit -m "📊 Add Terraform deployment report ${{ steps.deployment-report.outputs.deployment_id }}"
+            git push
+          fi
+
+      - name: 💾 Upload Deployment Report
+        if: steps.deployment-report.outputs.timestamp != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-deployment-report-${{ steps.deployment-report.outputs.timestamp }}
+          path: deployment-reports/${{ steps.deployment-report.outputs.timestamp }}/
+          retention-days: 90
+
       - name: 📊 Deployment Summary
         run: |
-          echo "## 🎉 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎉 Terraform ALZ Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** ${{ github.event.inputs.environment || 'sandbox' }}" >> $GITHUB_STEP_SUMMARY
           echo "**Terraform Version:** ${{ env.TF_VERSION }}" >> $GITHUB_STEP_SUMMARY
           echo "**Deployment Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          if [[ -n "${{ steps.deployment-report.outputs.deployment_id }}" ]]; then
+            echo "**Report ID:** ${{ steps.deployment-report.outputs.deployment_id }}" >> $GITHUB_STEP_SUMMARY
+            echo "**Resources:** ${{ steps.deployment-report.outputs.resource_count }} deployed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📊 Deployment Report" >> $GITHUB_STEP_SUMMARY
+            echo "- 📄 Report: deployment-reports/${{ steps.deployment-report.outputs.timestamp }}/" >> $GITHUB_STEP_SUMMARY
+            echo "- 🌐 Dashboard: [View Live Reports](https://ma3u.github.io/azm-alz-min/)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📋 Resources Deployed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY

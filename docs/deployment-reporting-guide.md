@@ -1,18 +1,18 @@
 # Deployment Reporting Guide
 
-This guide covers the comprehensive deployment reporting system that provides detailed insights into your Azure Landing Zone deployments, including cost analysis, security assessments, and resource inventories.
+Comprehensive deployment reporting system for Azure Landing Zone deployments with automated cost analysis, security assessment, and GitHub Pages integration.
 
 ## 🎯 Overview
 
-The deployment reporting system (`deploy-with-report.sh`) automatically:
+The deployment reporting system provides:
 
-1. **Validates prerequisites** and runs pre-commit checks
-2. **Deploys infrastructure** with full error handling
-3. **Inventories resources** across all resource groups
-4. **Analyzes costs** with service-level breakdown
-5. **Assesses security** with scoring and recommendations
-6. **Generates reports** in HTML and JSON formats
-7. **Manages history** by keeping the last 5 deployment reports
+1. **Infracost Integration** - Precise cost estimation using Terraform/Bicep configurations
+2. **Automated Deployment Reports** - HTML dashboards with resource inventory and security scoring
+3. **GitHub Pages Publishing** - Automated report sharing via `https://ma3u.github.io/azm-alz-min/`
+4. **Historical Tracking** - Deployment history with interactive index dashboard
+5. **Security Assessment** - Compliance scoring based on sandbox/production policies
+6. **Resource Management** - Complete inventory across hub and spoke architecture
+7. **Cost Optimization** - Delta analysis and optimization recommendations
 
 ## 🚀 Quick Start
 
@@ -30,15 +30,22 @@ The deployment reporting system (`deploy-with-report.sh`) automatically:
 
 ### View Reports
 
+**🌐 Live Dashboard (Recommended):**
+
+- **GitHub Pages**: https://ma3u.github.io/azm-alz-min/
+- **Auto-updates**: Every push to main with new reports
+
+**💻 Local Viewing:**
+
 ```bash
 # Open latest HTML report
 open deployment-reports/$(ls deployment-reports/ | grep '^20' | sort -r | head -1)/deployment-report.html
 
+# View reports index dashboard
+open deployment-reports/index.html
+
 # List all deployment reports
 deployment-reports/scripts/report-manager.sh list
-
-# View reports index
-open deployment-reports/index.html
 ```
 
 ## 📊 Report Components
@@ -202,6 +209,65 @@ deployment-reports/
 ├── scripts/               # Report management tools
 └── index.html            # Reports overview page
 ```
+
+## 🌐 GitHub Pages Deployment
+
+### Automated Publishing
+
+Reports are automatically published to GitHub Pages at: **https://ma3u.github.io/azm-alz-min/**
+
+**Triggers:**
+
+- ✅ **Automatic**: Every push to `main` branch with updated `deployment-reports/`
+- 🔘 **Manual**: GitHub Actions workflow `Deploy Deployment Reports to GitHub Pages`
+- 📊 **Real-time**: Updates available within 2-3 minutes of deployment
+
+### Manual GitHub Pages Deployment
+
+```bash
+# Deploy current reports to GitHub Pages
+./automation/scripts/deploy-reports-to-pages.sh
+
+# Check deployment status
+./automation/scripts/deploy-reports-to-pages.sh --status
+
+# Verify configuration only
+./automation/scripts/deploy-reports-to-pages.sh --check
+```
+
+### GitHub Pages Configuration
+
+**Repository Settings Required:**
+
+1. Enable **GitHub Pages** in repository settings
+2. Set source to **GitHub Actions** (not branch)
+3. Configure **GitHub Pages** deployment workflow
+
+**Workflow Features:**
+
+- ✅ **Automatic detection** of updated reports
+- 📦 **Artifact creation** and deployment
+- 🔒 **Security permissions** for Pages deployment
+- ⚡ **Fast deployment** with caching
+- 🧹 **Cleanup** of old deployments
+
+### Live Dashboard Features
+
+**Interactive Report Index:**
+
+- 📊 **Deployment cards** with status, metrics, and timestamps
+- 💰 **Cost tracking** across deployments
+- 🔒 **Security scoring** with trends
+- 📈 **Resource growth** visualization
+- 🔗 **Direct links** to detailed HTML reports
+
+**Benefits over local viewing:**
+
+- 🌐 **Share reports** with team members
+- 📱 **Mobile responsive** design
+- 🔄 **Always up-to-date** with latest deployments
+- 📋 **No local setup** required
+- 🔗 **Persistent URLs** for specific reports
 
 ## 💡 Cost Optimization
 
