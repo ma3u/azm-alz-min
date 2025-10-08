@@ -291,10 +291,42 @@ resource "azurerm_linux_web_app" "main" {
 
   virtual_network_subnet_id = azurerm_subnet.spoke_web_apps.id
 
+  # Security configurations to comply with DEP policies
+  https_only                                = true
+  public_network_access_enabled            = false
+  client_certificate_enabled               = false
+  client_certificate_mode                  = "Required"
+  ftp_publish_basic_authentication_enabled = false
+  webdeploy_publish_basic_authentication_enabled = false
+
   site_config {
-    always_on = true
+    always_on                                     = true
+    ftps_state                                   = "Disabled"
+    http2_enabled                                = true
+    minimum_tls_version                          = "1.2"
+    scm_minimum_tls_version                      = "1.2"
+    vnet_route_all_enabled                       = true
+    ip_restriction_default_action               = "Deny"
+    scm_ip_restriction_default_action           = "Deny"
+
     application_stack {
       dotnet_version = "6.0"
+    }
+
+    # Allow traffic only from the VNet
+    ip_restriction {
+      virtual_network_subnet_id = azurerm_subnet.spoke_web_apps.id
+      name                      = "VNetRestriction"
+      priority                  = 100
+      action                    = "Allow"
+    }
+
+    # SCM site restrictions
+    scm_ip_restriction {
+      virtual_network_subnet_id = azurerm_subnet.spoke_web_apps.id
+      name                      = "SCMVNetRestriction"
+      priority                  = 100
+      action                    = "Allow"
     }
   }
 
