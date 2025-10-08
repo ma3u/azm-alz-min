@@ -17,17 +17,11 @@ on:
         required: false
         default: false
         type: boolean
-      skip_cleanup:
-        description: "Skip cleanup step"
-        required: false
-        default: false
-        type: boolean
 
 jobs:
   cleanup:
     name: 🧹 Cleanup Resources
     runs-on: ubuntu-latest
-    if: ${{ !github.event.inputs.skip_cleanup }}
     environment:
       name: cleanup
 
@@ -45,9 +39,9 @@ jobs:
           ENV="${{ github.event.inputs.environment }}"
           echo "🧹 Quick cleanup of ALZ resources in environment: $ENV"
 
-          # Find and delete ALZ resource groups
-          echo "📦 Finding ALZ Resource Groups..."
-          RG_LIST=$(az group list --query "[?starts_with(name, 'rg-alz-') || contains(name, '-${ENV}')].name" -o tsv)
+          # Find and delete ALZ resource groups (both Bicep 'bi' and Terraform 'tf' patterns)
+          echo "📦 Finding ALZ Resource Groups (Bicep & Terraform)..."
+          RG_LIST=$(az group list --query "[?starts_with(name, 'rg-alz-') && (contains(name, '-bi-') || contains(name, '-tf-'))].name" -o tsv)
 
           if [[ -n "$RG_LIST" ]]; then
             for rg in $RG_LIST; do
@@ -74,7 +68,7 @@ jobs:
   trigger-deploy:
     name: 🚀 Trigger ALZ Deployment
     needs: [cleanup]
-    if: always() && (needs.cleanup.result == 'success' || needs.cleanup.result == 'skipped')
+    if: always() && needs.cleanup.result == 'success'
     runs-on: ubuntu-latest
 
     steps:

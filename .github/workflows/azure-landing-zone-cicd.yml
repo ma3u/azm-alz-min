@@ -514,23 +514,28 @@ jobs:
 
           # Test resource group existence - detect actual deployed RG name
           if [[ "${{ matrix.path }}" == *"hub-spoke"* ]]; then
-            # Hub-Spoke template tests
-            if az group show --name "rg-alz-hub-sandbox" --output none 2>/dev/null; then
+            # Hub-Spoke template tests (Terraform pattern)
+            if az group show --name "rg-alz-tf-hub-sandbox" --output none 2>/dev/null; then
               echo "✅ Hub resource group exists"
             else
               echo "❌ Hub resource group not found"
               exit 1
             fi
 
-            if az group show --name "rg-alz-spoke-sandbox" --output none 2>/dev/null; then
+            if az group show --name "rg-alz-tf-spoke-sandbox" --output none 2>/dev/null; then
               echo "✅ Spoke resource group exists"
             else
               echo "❌ Spoke resource group not found"
               exit 1
             fi
           else
-            # Foundation template tests - single RG
-            EXPECTED_RG="rg-alz-sandbox-sandbox"
+            # Foundation template tests - determine naming pattern based on type
+            if [[ "${{ matrix.type }}" == "bicep" ]]; then
+              EXPECTED_RG="rg-alz-sandbox-bi-sandbox"
+            else
+              EXPECTED_RG="rg-alz-tf-hub-sandbox"  # Terraform foundation uses hub naming
+            fi
+
             if az group show --name "$EXPECTED_RG" --output none 2>/dev/null; then
               echo "✅ Foundation resource group exists: $EXPECTED_RG"
             else
@@ -544,11 +549,15 @@ jobs:
 
           # Test web app connectivity (if deployed)
           if [[ "${{ matrix.path }}" == *"hub-spoke"* ]]; then
-            # Hub-Spoke template has web apps in spoke RG
-            WEB_APP_RG="rg-alz-spoke-sandbox"
+            # Hub-Spoke template has web apps in spoke RG (Terraform pattern)
+            WEB_APP_RG="rg-alz-tf-spoke-sandbox"
           else
-            # Foundation template has web apps (if any) in single RG
-            WEB_APP_RG="rg-alz-sandbox-sandbox"
+            # Foundation template has web apps (if any) - determine pattern by type
+            if [[ "${{ matrix.type }}" == "bicep" ]]; then
+              WEB_APP_RG="rg-alz-sandbox-bi-sandbox"
+            else
+              WEB_APP_RG="rg-alz-tf-hub-sandbox"  # Terraform foundation uses hub naming
+            fi
           fi
 
           if az webapp list --resource-group "$WEB_APP_RG" --query "[0].defaultHostName" -o tsv 2>/dev/null | grep -q "azurewebsites.net"; then
@@ -742,11 +751,15 @@ jobs:
           echo "⏰ Waiting 5 minutes for testing..."
           sleep 300
 
-          # Clean up sandbox resources for feature branches
+          # Clean up sandbox resources for feature branches (both Bicep and Terraform patterns)
           echo "Cleaning up resource groups..."
 
-          az group delete --name "rg-alz-hub-sandbox" --yes --no-wait || echo "Hub RG already deleted or doesn't exist"
-          az group delete --name "rg-alz-spoke-sandbox" --yes --no-wait || echo "Spoke RG already deleted or doesn't exist"
+          # Clean up Terraform resource groups
+          az group delete --name "rg-alz-tf-hub-sandbox" --yes --no-wait || echo "Terraform Hub RG already deleted or doesn't exist"
+          az group delete --name "rg-alz-tf-spoke-sandbox" --yes --no-wait || echo "Terraform Spoke RG already deleted or doesn't exist"
+
+          # Clean up Bicep resource groups
+          az group delete --name "rg-alz-sandbox-bi-sandbox" --yes --no-wait || echo "Bicep RG already deleted or doesn't exist"
 
           echo "🧹 Cleanup initiated for feature branch resources"
 

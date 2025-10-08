@@ -58,9 +58,9 @@ var commonTags = {
   Purpose: 'AVM-Validation'
 }
 
-var resourceGroupName = 'rg-${workloadName}-${environment}'
-var keyVaultName = '${keyVaultNamePrefix}-${take(uniqueString(subscription().subscriptionId), 8)}'
-var virtualNetworkName = 'vnet-${workloadName}-${environment}'
+var resourceGroupName = 'rg-${workloadName}-bi-${environment}'
+var keyVaultName = '${keyVaultNamePrefix}-bi-${take(uniqueString(subscription().subscriptionId), 8)}'
+var virtualNetworkName = 'vnet-${workloadName}-bi-${environment}'
 
 // =======================
 // RESOURCE GROUP
@@ -119,7 +119,7 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
   name: 'logAnalyticsWorkspaceDeployment'
   scope: resourceGroup
   params: {
-    name: 'log-${workloadName}-${environment}-${take(uniqueString(subscription().subscriptionId), 8)}'
+    name: 'log-${workloadName}-bi-${environment}-${take(uniqueString(subscription().subscriptionId), 8)}'
     location: location
     skuName: 'PerGB2018'
     dataRetention: 30 // Sandbox retention

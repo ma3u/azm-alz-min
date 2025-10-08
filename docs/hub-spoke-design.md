@@ -35,6 +35,14 @@ graph TB
             Functions[Azure Functions<br/>Premium Plan<br/>10.1.4.0/26]
         end
 
+        subgraph AKSTier["AKS Container Tier"]
+            subgraph AKSSubnet["AKS Subnet - 10.1.20.0/22"]
+                AKSCluster[AKS Private Cluster<br/>Kubernetes 1.30<br/>CNI Networking]
+                SystemNodes[System Node Pool<br/>2-5 nodes<br/>Standard_d4s_v5]
+                UserNodes[User Node Pool<br/>2-10 nodes<br/>Auto-scaling]
+            end
+        end
+
         subgraph DataTier["Data & Storage Tier"]
             PostgreSQL[PostgreSQL Flexible<br/>Private<br/>10.1.10.0/26]
             Storage[Storage Account<br/>Private Endpoints<br/>10.1.11.0/26]
@@ -64,11 +72,18 @@ graph TB
     AppGW -->|Private<br/>HTTP/HTTPS| WebApps
     AppGW -->|Private<br/>HTTP/HTTPS| ContainerApps
     AppGW -->|Private<br/>HTTP/HTTPS| Functions
+    AppGW -->|Ingress Controller<br/>HTTPS:443| AKSCluster
 
     WebApps -.->|Private Connection<br/>Port 5432| PostgreSQL
     WebApps -.->|Private Endpoint<br/>HTTPS:443| Storage
     WebApps -.->|Private Endpoint<br/>HTTPS:443| ACR
     WebApps -.->|Private Endpoint<br/>HTTPS:443| KeyVault
+
+    AKSCluster -.->|Image Pull<br/>HTTPS:443| ACR
+    AKSCluster -.->|Secrets Access<br/>HTTPS:443| KeyVault
+    AKSCluster -.->|Database Connection<br/>Port 5432| PostgreSQL
+    AKSCluster -.->|Persistent Storage<br/>HTTPS:443| Storage
+    AKSCluster -.->|Logs & Metrics<br/>HTTPS:443| LogAnalytics
 
     ContainerApps -.->|Private Connection| PostgreSQL
     ContainerApps -.->|Private Endpoint| Storage
@@ -91,12 +106,16 @@ graph TB
     style Spoke1 fill:#50e6ff,color:#000
     style Spoke2 fill:#40e0d0,color:#000
     style AppTier fill:#7fba00,color:#fff
+    style AKSTier fill:#326ce5,color:#fff
     style DataTier fill:#ffb900,color:#000
     style Firewall fill:#e81123,color:#fff
     style PostgreSQL fill:#336791,color:#fff
     style ACR fill:#0078d4,color:#fff
     style KeyVault fill:#0078d4,color:#fff
     style Connector fill:#00188f,color:#fff
+    style AKSCluster fill:#326ce5,color:#fff
+    style SystemNodes fill:#2e8b57,color:#fff
+    style UserNodes fill:#4682b4,color:#fff
 ```
 
 ## Optimized IP Address Allocation
@@ -118,6 +137,7 @@ graph TB
 - **Container Apps Subnet**: 10.1.3.0/24 (254 IPs - delegated to Microsoft.App/environments)
 - **Functions Subnet**: 10.1.4.0/26 (62 IPs - delegated to Microsoft.Web/serverFarms)
 - **PostgreSQL Flexible Subnet**: 10.1.10.0/26 (62 IPs - delegated to Microsoft.DBforPostgreSQL/flexibleServers)
+- **AKS Subnet**: 10.1.20.0/22 (1024 IPs - for AKS nodes and pods with Azure CNI)
 - **Storage Private Endpoints**: 10.1.11.0/26 (62 IPs for private endpoints)
 - **ACR Private Endpoints**: 10.1.12.0/28 (14 IPs for container registry)
 - **Key Vault Private Endpoints**: 10.1.13.0/28 (14 IPs for secrets access)
@@ -196,10 +216,19 @@ graph TB
    - Built-in load balancing and service discovery
 
 4. **Azure Functions Premium** (AVM: `avm/res/web/site`)
+
    - VNet integration for private networking
    - Durable Functions for stateful workflows
    - Event-driven processing
    - Cold start elimination with pre-warmed instances
+
+5. **Azure Kubernetes Service (AKS)** (AVM: `avm/res/container-service/managed-cluster`)
+   - Private cluster with no public API endpoint
+   - Azure CNI networking with VNet integration
+   - Dual node pools (system and user workloads)
+   - Container Insights and Log Analytics integration
+   - Managed identity for ACR authentication
+   - Auto-scaling with cluster autoscaler
 
 #### Data Services
 

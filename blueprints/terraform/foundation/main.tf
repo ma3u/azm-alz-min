@@ -44,8 +44,8 @@ locals {
   }
 
   # Resource group names
-  hub_resource_group_name   = "rg-${var.organization_prefix}-hub-${var.environment}"
-  spoke_resource_group_name = "rg-${var.organization_prefix}-spoke-${var.environment}"
+  hub_resource_group_name   = "rg-${var.organization_prefix}-tf-hub-${var.environment}"
+  spoke_resource_group_name = "rg-${var.organization_prefix}-tf-spoke-${var.environment}"
 
   # Unique suffix for globally unique resources
   unique_suffix = random_string.unique.result
@@ -78,7 +78,7 @@ resource "azurerm_resource_group" "spoke" {
 # =======================
 
 resource "azurerm_virtual_network" "hub" {
-  name                = "vnet-${var.organization_prefix}-hub-${var.environment}"
+  name                = "vnet-${var.organization_prefix}-tf-hub-${var.environment}"
   resource_group_name = azurerm_resource_group.hub.name
   location            = var.location
   address_space       = [var.hub_vnet_address_space]
@@ -119,7 +119,7 @@ resource "azurerm_subnet" "hub_gateway" {
 # =======================
 
 resource "azurerm_virtual_network" "spoke" {
-  name                = "vnet-${var.organization_prefix}-spoke-${var.environment}"
+  name                = "vnet-${var.organization_prefix}-tf-spoke-${var.environment}"
   resource_group_name = azurerm_resource_group.spoke.name
   location            = var.location
   address_space       = [var.spoke_vnet_address_space]
@@ -161,7 +161,7 @@ resource "azurerm_subnet" "spoke_aks" {
 # =======================
 
 resource "azurerm_virtual_network_peering" "hub_to_spoke" {
-  name                      = "peer-${var.organization_prefix}-hub-to-spoke"
+  name                      = "peer-${var.organization_prefix}-tf-hub-to-spoke"
   resource_group_name       = azurerm_resource_group.hub.name
   virtual_network_name      = azurerm_virtual_network.hub.name
   remote_virtual_network_id = azurerm_virtual_network.spoke.id
@@ -173,7 +173,7 @@ resource "azurerm_virtual_network_peering" "hub_to_spoke" {
 }
 
 resource "azurerm_virtual_network_peering" "spoke_to_hub" {
-  name                      = "peer-${var.organization_prefix}-spoke-to-hub"
+  name                      = "peer-${var.organization_prefix}-tf-spoke-to-hub"
   resource_group_name       = azurerm_resource_group.spoke.name
   virtual_network_name      = azurerm_virtual_network.spoke.name
   remote_virtual_network_id = azurerm_virtual_network.hub.id
@@ -189,7 +189,7 @@ resource "azurerm_virtual_network_peering" "spoke_to_hub" {
 # =======================
 
 resource "azurerm_log_analytics_workspace" "main" {
-  name                = "log-${var.organization_prefix}-hub-${var.environment}"
+  name                = "log-${var.organization_prefix}-tf-hub-${var.environment}"
   resource_group_name = azurerm_resource_group.hub.name
   location            = var.location
   sku                 = "PerGB2018"
@@ -204,7 +204,7 @@ resource "azurerm_log_analytics_workspace" "main" {
 
 resource "azurerm_container_registry" "main" {
   count               = var.enable_container_registry ? 1 : 0
-  name                = lower("acr${var.organization_prefix}${var.environment}${local.unique_suffix}")
+  name                = lower("acr${var.organization_prefix}tf${var.environment}${local.unique_suffix}")
   resource_group_name = azurerm_resource_group.hub.name
   location            = var.location
   sku                 = "Premium"
@@ -247,7 +247,7 @@ resource "azurerm_private_dns_zone_virtual_network_link" "acr_spoke" {
 
 resource "azurerm_private_endpoint" "acr" {
   count               = var.enable_container_registry ? 1 : 0
-  name                = "pe-acr-${var.organization_prefix}-${var.environment}"
+  name                = "pe-acr-${var.organization_prefix}-tf-${var.environment}"
   resource_group_name = azurerm_resource_group.hub.name
   location            = var.location
   subnet_id           = azurerm_subnet.hub_acr_private_endpoints.id
@@ -273,7 +273,7 @@ resource "azurerm_private_endpoint" "acr" {
 
 resource "azurerm_service_plan" "main" {
   count               = var.enable_app_workloads ? 1 : 0
-  name                = "asp-${var.organization_prefix}-${var.environment}"
+  name                = "asp-${var.organization_prefix}-tf-${var.environment}"
   resource_group_name = azurerm_resource_group.spoke.name
   location            = var.location
   os_type             = "Linux"
@@ -284,7 +284,7 @@ resource "azurerm_service_plan" "main" {
 
 resource "azurerm_linux_web_app" "main" {
   count               = var.enable_app_workloads ? 1 : 0
-  name                = "app-${var.organization_prefix}-web-${var.environment}"
+  name                = "app-${var.organization_prefix}-tf-web-${var.environment}"
   resource_group_name = azurerm_resource_group.spoke.name
   location            = var.location
   service_plan_id     = azurerm_service_plan.main[0].id
@@ -340,7 +340,7 @@ resource "azurerm_linux_web_app" "main" {
 
 resource "azurerm_storage_account" "main" {
   count               = var.enable_app_workloads ? 1 : 0
-  name                = lower("st${var.organization_prefix}${var.environment}${local.unique_suffix}")
+  name                = lower("st${var.organization_prefix}tf${var.environment}${local.unique_suffix}")
   resource_group_name = azurerm_resource_group.spoke.name
   location            = var.location
 
@@ -362,10 +362,10 @@ resource "azurerm_storage_account" "main" {
 
 resource "azurerm_kubernetes_cluster" "main" {
   count               = var.enable_aks ? 1 : 0
-  name                = "aks-${var.organization_prefix}-${var.environment}-${random_string.unique.result}"
+  name                = "aks-${var.organization_prefix}-tf-${var.environment}-${random_string.unique.result}"
   location            = var.location
   resource_group_name = azurerm_resource_group.spoke.name
-  dns_prefix          = "aks-${var.organization_prefix}-${var.environment}-${random_string.unique.result}"
+  dns_prefix          = "aks-${var.organization_prefix}-tf-${var.environment}-${random_string.unique.result}"
   kubernetes_version  = var.aks_kubernetes_version
   sku_tier            = "Free" # Start with Free tier to avoid policy issues
 

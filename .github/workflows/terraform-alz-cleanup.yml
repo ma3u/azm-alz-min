@@ -63,21 +63,21 @@ jobs:
           ENV="${{ github.event.inputs.environment }}"
           echo "🔍 Discovering ALZ resources in environment: $ENV"
 
-          # Find resource groups
-          echo "📦 Finding ALZ Resource Groups..."
-          RG_LIST=$(az group list --query "[?starts_with(name, 'rg-alz-') || contains(name, '-${ENV}')].name" -o tsv | tr '\n' ' ')
+          # Find resource groups (both Bicep 'bi' and Terraform 'tf' patterns)
+          echo "📦 Finding ALZ Resource Groups (Bicep & Terraform)..."
+          RG_LIST=$(az group list --query "[?starts_with(name, 'rg-alz-') && (contains(name, '-bi-') || contains(name, '-tf-'))].name" -o tsv | tr '\n' ' ')
           echo "resource_groups=$RG_LIST" >> $GITHUB_OUTPUT
 
-          # Find AKS clusters
+          # Find AKS clusters (both Bicep and Terraform patterns)
           echo "🚢 Finding AKS Clusters..."
-          AKS_LIST=$(az aks list --query "[?starts_with(name, 'aks-alz-') || contains(name, '-${ENV}')].{name:name,rg:resourceGroup}" -o json)
+          AKS_LIST=$(az aks list --query "[?starts_with(name, 'aks-alz-') && (contains(name, '-bi-') || contains(name, '-tf-'))].{name:name,rg:resourceGroup}" -o json)
           echo "aks_clusters<<EOF" >> $GITHUB_OUTPUT
           echo "$AKS_LIST" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
 
-          # Find ACR registries
+          # Find ACR registries (both Bicep and Terraform patterns)
           echo "📦 Finding Container Registries..."
-          ACR_LIST=$(az acr list --query "[?starts_with(name, 'acralz') || contains(name, '${ENV}')].{name:name,rg:resourceGroup}" -o json)
+          ACR_LIST=$(az acr list --query "[?starts_with(name, 'acralz') && (contains(name, 'bi') || contains(name, 'tf'))].{name:name,rg:resourceGroup}" -o json)
           echo "acr_registries<<EOF" >> $GITHUB_OUTPUT
           echo "$ACR_LIST" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT

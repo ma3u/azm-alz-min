@@ -150,6 +150,9 @@ az deployment sub create \
 
 - [Azure Sandbox Policies Overview](docs/azure-sandbox-policies-overview.md) - Understand the rules and requirements
 - [AVM Deployment Guide](docs/avm-deployment-guide.md) - Complete deployment walkthrough
+- [AKS Configuration Guide](docs/aks-configuration-guide.md) - Comprehensive AKS setup and configuration
+- [AKS Deployment Guide](docs/aks-deployment-guide.md) - Step-by-step AKS deployment walkthrough
+- [Hub-Spoke Design](docs/hub-spoke-design.md) - Network architecture including AKS integration
 - [Pre-commit Errors Analysis](docs/pre-commit-errors-analysis.md) - Fix common issues
 
 ### 🔧 Developer Setup
