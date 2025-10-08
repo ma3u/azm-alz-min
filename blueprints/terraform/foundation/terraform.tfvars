@@ -16,3 +16,4 @@ enable_aks_user_node_pool  = true
 aks_user_node_count        = 2
 aks_user_node_size         = "Standard_d4s_v5" # Approved enterprise VM size (consistent)
 aks_admin_group_object_ids = []                # Will use cluster admin for this demo
+enable_rbac_assignments    = false             # Disabled to avoid permission issues in sandbox

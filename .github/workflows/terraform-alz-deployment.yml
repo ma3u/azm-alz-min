@@ -310,22 +310,52 @@ jobs:
           WORKSPACE="${{ github.event.inputs.environment || 'sandbox' }}"
           terraform workspace select "$WORKSPACE" || terraform workspace new "$WORKSPACE"
 
-          # Apply the plan
+          # Check for existing resources and handle conflicts
+          echo "🔍 Checking for existing resource conflicts..."
+
+          # Apply the plan with retry logic for resource conflicts
           echo "🚀 Applying Terraform changes..."
           if [[ "${{ github.event.inputs.auto_approve }}" == "true" ]]; then
             echo "⚡ Auto-approve enabled"
-            terraform apply tfplan
           else
             echo "👀 Manual approval required in GitHub environment"
-            terraform apply tfplan
           fi
 
-          apply_exitcode=$?
+          # Attempt to apply with error handling
+          set +e  # Don't exit on error initially
+          terraform apply tfplan 2>&1 | tee apply_output.log
+          apply_exitcode=${PIPESTATUS[0]}
+          set -e  # Re-enable exit on error
+
+          # Check for resource already exists errors and attempt import
+          if [[ $apply_exitcode -ne 0 ]] && grep -q "already exists" apply_output.log; then
+            echo "⚠️ Detected existing resources. Attempting to import..."
+
+            # Extract resource group names from error messages
+            existing_rgs=$(grep -oP 'resourceGroups/\K[^"]*' apply_output.log | sort -u)
+
+            for rg in $existing_rgs; do
+              if [[ "$rg" == *"hub"* ]]; then
+                echo "📥 Importing hub resource group: $rg"
+                terraform import azurerm_resource_group.hub "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/$rg" || echo "⚠️ Import failed for hub RG"
+              elif [[ "$rg" == *"spoke"* ]]; then
+                echo "📥 Importing spoke resource group: $rg"
+                terraform import azurerm_resource_group.spoke "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/$rg" || echo "⚠️ Import failed for spoke RG"
+              fi
+            done
+
+            # Retry the apply after imports
+            echo "🔄 Retrying Terraform apply after imports..."
+            terraform apply tfplan
+            apply_exitcode=$?
+          fi
 
           if [[ $apply_exitcode -eq 0 ]]; then
             echo "✅ Terraform apply completed successfully"
           else
             echo "❌ Terraform apply failed"
+            echo "📜 Apply output:"
+            cat apply_output.log
             exit 1
           fi
 

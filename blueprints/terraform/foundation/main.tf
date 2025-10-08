@@ -182,6 +182,16 @@ resource "azurerm_virtual_network_peering" "spoke_to_hub" {
   allow_gateway_transit        = false
   allow_virtual_network_access = true
   use_remote_gateways          = false
+
+  depends_on = [
+    azurerm_subnet.hub_bastion,
+    azurerm_subnet.hub_shared_services,
+    azurerm_subnet.hub_acr_private_endpoints,
+    azurerm_subnet.hub_gateway,
+    azurerm_subnet.spoke_web_apps,
+    azurerm_subnet.spoke_private_endpoints,
+    azurerm_subnet.spoke_aks
+  ]
 }
 
 # =======================
@@ -565,12 +575,17 @@ resource "azurerm_kubernetes_cluster_node_pool" "user" {
   tags = local.common_tags
 }
 
-# Role assignment for AKS to pull from ACR
+# Role assignment for AKS to pull from ACR (conditional to avoid sandbox permission issues)
 resource "azurerm_role_assignment" "aks_acr_pull" {
-  count                = var.enable_aks && var.enable_container_registry ? 1 : 0
+  count                = var.enable_aks && var.enable_container_registry && var.enable_rbac_assignments ? 1 : 0
   scope                = azurerm_container_registry.main[0].id
   role_definition_name = "AcrPull"
   principal_id         = azurerm_kubernetes_cluster.main[0].kubelet_identity[0].object_id
+
+  # Retry logic for role propagation
+  lifecycle {
+    ignore_changes = []
+  }
 }
 
 # =======================

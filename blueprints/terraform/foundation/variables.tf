@@ -175,3 +175,9 @@ variable "aks_admin_group_object_ids" {
     error_message = "All admin group object IDs must be valid UUIDs."
   }
 }
+
+variable "enable_rbac_assignments" {
+  description = "Enable RBAC role assignments (may require elevated permissions)"
+  type        = bool
+  default     = false # Disabled by default for sandbox environments
+}

@@ -539,8 +539,8 @@ jobs:
 
           echo "🔍 Finding resource groups for environment: $ENVIRONMENT"
 
-          # Find and delete resource groups
-          rg_list=$(az group list --query "[?contains(name, 'alz') && contains(name, '$ENVIRONMENT')].name" --output tsv)
+          # Find and delete resource groups (both legacy and bi-prefixed)
+          rg_list=$(az group list --query "[?(contains(name, 'alz') && contains(name, '$ENVIRONMENT')) || (starts_with(name, 'rg-alz-') && contains(name, '-bi-'))].name" --output tsv)
 
           if [[ -n "$rg_list" ]]; then
             echo "🗑️ Found resource groups to delete:"

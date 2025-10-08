@@ -24,6 +24,7 @@ Based on the [LinkedIn article](https://www.linkedin.com/pulse/ai-powered-gitops
   - [📖 Learn First (Recommended)](#-learn-first-recommended)
   - [🔧 Developer Setup](#-developer-setup)
 - [📋 Documentation Library](#-documentation-library)
+- [🔄 GitHub Actions Workflows](#-github-actions-workflows)
 - [🎯 How to Use This Repository](#-how-to-use-this-repository)
 - [🛡️ Repository Standards & Best Practices](#️-repository-standards--best-practices)
 - [🏗️ Repository Structure](#️-repository-structure)
@@ -367,6 +368,41 @@ terraform1.9 apply tfplan
 - [🔄 Terraform CI/CD Guide](docs/terraform-cicd-guide.md) - GitHub Actions automation
 - [📚 AVM Modules Guide](docs/avm-modules-guide.md) - AVM reference and best practices
 - [📊 Deployment Reporting Guide](docs/deployment-reporting-guide.md) - Comprehensive deployment insights with HTML dashboards
+
+## 🔄 GitHub Actions Workflows
+
+**📋 [Complete Workflows Documentation →](.github/WORKFLOWS.md)**
+
+Comprehensive guide to all GitHub Actions workflows supporting both Bicep and Terraform deployments:
+
+**🎯 Core Deployment Workflows:**
+
+- **Bicep ALZ Sandbox** - Deploy and validate ALZ using Bicep templates
+- **Terraform ALZ Deployment** - Deploy ALZ using Terraform with enhanced error handling
+- **Terraform ALZ Full Deployment** - Complete enterprise-scale deployment
+
+**🔒 Security & Compliance:**
+
+- **Security Compliance** - Comprehensive security scanning and validation
+- **Infrastructure Validation** - Code quality and best practices validation
+
+**🧹 Cleanup & Maintenance:**
+
+- **Terraform ALZ Cleanup** - Clean up resources with 'tf' and 'bi' prefixes
+- **Pre-commit** - Automated code quality checks
+
+**💰 Cost Management:**
+
+- **Infracost** - Automated cost estimation for infrastructure changes
+
+**Key Features:**
+
+- ✅ Enhanced resource conflict detection and import handling
+- 🔄 Automatic workspace management
+- 🛡️ Comprehensive security scanning
+- 💰 Integrated cost estimation
+- 📊 Deployment reporting and documentation publishing
+- 🧹 Automated cleanup for sandbox environments
 
 ### 🏭 Enterprise Integration
 
