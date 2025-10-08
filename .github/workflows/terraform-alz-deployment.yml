@@ -353,12 +353,36 @@ jobs:
               fi
             done
 
+            # Extract and import virtual networks
+            if grep -q "virtualNetworks/vnet-alz-tf-hub-sandbox" apply_output.log; then
+              echo "📥 Importing hub virtual network"
+              terraform import azurerm_virtual_network.hub "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/rg-alz-tf-hub-sandbox/providers/Microsoft.Network/virtualNetworks/vnet-alz-tf-hub-sandbox" || echo "⚠️ Import failed for hub VNet"
+            fi
+
+            if grep -q "virtualNetworks/vnet-alz-tf-spoke-sandbox" apply_output.log; then
+              echo "📥 Importing spoke virtual network"
+              terraform import azurerm_virtual_network.spoke "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/rg-alz-tf-spoke-sandbox/providers/Microsoft.Network/virtualNetworks/vnet-alz-tf-spoke-sandbox" || echo "⚠️ Import failed for spoke VNet"
+            fi
+
+            # Extract and import log analytics workspace
+            if grep -q "workspaces/log-alz-tf-hub-sandbox" apply_output.log; then
+              echo "📥 Importing log analytics workspace"
+              terraform import azurerm_log_analytics_workspace.main "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/rg-alz-tf-hub-sandbox/providers/Microsoft.OperationalInsights/workspaces/log-alz-tf-hub-sandbox" || echo "⚠️ Import failed for Log Analytics"
+            fi
+
             # Extract and import other common resources
             # Container registries
             existing_acr=$(grep -oP '/registries/\K[^"]*' apply_output.log | sort -u)
             for acr in $existing_acr; do
               echo "📥 Importing container registry: $acr"
               terraform import 'azurerm_container_registry.main[0]' "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/rg-alz-tf-hub-sandbox/providers/Microsoft.ContainerRegistry/registries/$acr" || echo "⚠️ Import failed for ACR"
+            done
+
+            # Import AKS clusters if they exist
+            existing_aks=$(grep -oP '/managedClusters/\K[^"]*' apply_output.log | sort -u)
+            for aks in $existing_aks; do
+              echo "📥 Importing AKS cluster: $aks"
+              terraform import 'azurerm_kubernetes_cluster.main[0]' "/subscriptions/${{ env.ARM_SUBSCRIPTION_ID }}/resourceGroups/rg-alz-tf-spoke-sandbox/providers/Microsoft.ContainerService/managedClusters/$aks" || echo "⚠️ Import failed for AKS"
             done
 
             # Regenerate plan after imports and retry apply
