@@ -4,7 +4,7 @@ location                  = "westeurope"
 hub_vnet_address_space    = "10.0.0.0/16"
 spoke_vnet_address_space  = "10.1.0.0/16"
 enable_container_registry = true
-enable_app_workloads      = true
+enable_app_workloads      = false
 enable_bastion            = false
 
 # AKS Configuration (enabled for deployment with approved VM sizes)
