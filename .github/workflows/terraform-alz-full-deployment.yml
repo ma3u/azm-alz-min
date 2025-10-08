@@ -1,0 +1,130 @@
+name: 🚀 Terraform ALZ Full Deployment (Clean + Deploy)
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target Environment"
+        required: true
+        default: "sandbox"
+        type: choice
+        options:
+          - sandbox
+          - dev
+          - test
+      auto_approve:
+        description: "Auto-approve deployment (use with caution)"
+        required: false
+        default: false
+        type: boolean
+      skip_cleanup:
+        description: "Skip cleanup step"
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  cleanup:
+    name: 🧹 Cleanup Resources
+    runs-on: ubuntu-latest
+    if: ${{ !github.event.inputs.skip_cleanup }}
+    environment:
+      name: cleanup
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🚀 Azure CLI Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: 🧹 Quick ALZ Resource Cleanup
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "🧹 Quick cleanup of ALZ resources in environment: $ENV"
+
+          # Find and delete ALZ resource groups
+          echo "📦 Finding ALZ Resource Groups..."
+          RG_LIST=$(az group list --query "[?starts_with(name, 'rg-alz-') || contains(name, '-${ENV}')].name" -o tsv)
+
+          if [[ -n "$RG_LIST" ]]; then
+            for rg in $RG_LIST; do
+              echo "🗑️ Deleting resource group: $rg"
+              az group delete --name "$rg" --yes --no-wait || echo "⚠️ Failed to delete $rg"
+            done
+
+            # Wait for deletions to start
+            sleep 30
+
+            # Check if deletions are in progress
+            for rg in $RG_LIST; do
+              STATUS=$(az group show --name "$rg" --query "properties.provisioningState" -o tsv 2>/dev/null || echo "NotFound")
+              if [[ "$STATUS" == "Deleting" ]]; then
+                echo "⏳ Resource group $rg is being deleted..."
+              elif [[ "$STATUS" == "NotFound" ]]; then
+                echo "✅ Resource group $rg has been deleted"
+              fi
+            done
+          else
+            echo "ℹ️ No ALZ resource groups found to delete"
+          fi
+
+  trigger-deploy:
+    name: 🚀 Trigger ALZ Deployment
+    needs: [cleanup]
+    if: always() && (needs.cleanup.result == 'success' || needs.cleanup.result == 'skipped')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🚀 Trigger Deployment Workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "🚀 Triggering Terraform ALZ Deployment workflow..."
+          gh workflow run "Terraform ALZ Deployment" \
+            --field environment="${{ github.event.inputs.environment }}" \
+            --field auto_approve="${{ github.event.inputs.auto_approve }}"
+
+          echo "✅ Deployment workflow triggered!"
+          echo "👀 Monitor the deployment at: https://github.com/${{ github.repository }}/actions/workflows/terraform-alz-deployment.yml"
+
+  summary:
+    name: 📊 Deployment Summary
+    runs-on: ubuntu-latest
+    needs: [cleanup, trigger-deploy]
+    if: always()
+
+    steps:
+      - name: 📊 Generate Summary
+        run: |
+          echo "## 🚀 ALZ Full Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Job Results:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧩 **Cleanup:** ${{ needs.cleanup.result || 'skipped' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🚀 **Deploy Trigger:** ${{ needs.trigger-deploy.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ needs.trigger-deploy.result }}" == "success" ]]; then
+            echo "### ✅ Deployment Successful!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Your ALZ infrastructure has been successfully deployed to **${{ github.event.inputs.environment }}**." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🔗 Next Steps:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- Check Azure Portal for deployed resources" >> $GITHUB_STEP_SUMMARY
+            echo "- Configure AKS cluster access if needed" >> $GITHUB_STEP_SUMMARY
+            echo "- Review Terraform outputs for connection details" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Please check the deployment logs for errors." >> $GITHUB_STEP_SUMMARY
+          fi

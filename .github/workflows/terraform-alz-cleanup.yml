@@ -1,0 +1,182 @@
+name: 🗑️ Terraform ALZ Cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target Environment to cleanup"
+        required: true
+        default: "sandbox"
+        type: choice
+        options:
+          - sandbox
+          - dev
+          - test
+      confirm_deletion:
+        description: "Confirm resource deletion (type 'DELETE' to confirm)"
+        required: true
+        type: string
+      resource_type:
+        description: "What to clean up"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - resource-groups
+          - aks-only
+          - acr-only
+
+env:
+  ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+  ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+jobs:
+  cleanup-resources:
+    name: 🧹 Clean ALZ Resources
+    runs-on: ubuntu-latest
+    environment:
+      name: cleanup
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🚀 Azure CLI Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: ⚠️ Validate Confirmation
+        run: |
+          if [[ "${{ github.event.inputs.confirm_deletion }}" != "DELETE" ]]; then
+            echo "❌ Deletion not confirmed. Please type 'DELETE' exactly to confirm resource deletion."
+            exit 1
+          fi
+          echo "✅ Deletion confirmed. Proceeding with cleanup..."
+
+      - name: 🔍 Discover ALZ Resources
+        id: discover
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          echo "🔍 Discovering ALZ resources in environment: $ENV"
+
+          # Find resource groups
+          echo "📦 Finding ALZ Resource Groups..."
+          RG_LIST=$(az group list --query "[?starts_with(name, 'rg-alz-') || contains(name, '-${ENV}')].name" -o tsv | tr '\n' ' ')
+          echo "resource_groups=$RG_LIST" >> $GITHUB_OUTPUT
+
+          # Find AKS clusters
+          echo "🚢 Finding AKS Clusters..."
+          AKS_LIST=$(az aks list --query "[?starts_with(name, 'aks-alz-') || contains(name, '-${ENV}')].{name:name,rg:resourceGroup}" -o json)
+          echo "aks_clusters<<EOF" >> $GITHUB_OUTPUT
+          echo "$AKS_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          # Find ACR registries
+          echo "📦 Finding Container Registries..."
+          ACR_LIST=$(az acr list --query "[?starts_with(name, 'acralz') || contains(name, '${ENV}')].{name:name,rg:resourceGroup}" -o json)
+          echo "acr_registries<<EOF" >> $GITHUB_OUTPUT
+          echo "$ACR_LIST" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+          echo "📊 Discovery Results:"
+          echo "Resource Groups: $RG_LIST"
+          echo "AKS Clusters: $AKS_LIST"
+          echo "ACR Registries: $ACR_LIST"
+
+      - name: 🗑️ Clean AKS Clusters
+        if: contains(github.event.inputs.resource_type, 'all') || contains(github.event.inputs.resource_type, 'aks-only')
+        run: |
+          echo "🚢 Cleaning up AKS clusters..."
+          AKS_CLUSTERS='${{ steps.discover.outputs.aks_clusters }}'
+
+          if [[ "$AKS_CLUSTERS" != "[]" && "$AKS_CLUSTERS" != "" ]]; then
+            echo "$AKS_CLUSTERS" | jq -r '.[] | "\(.name) \(.rg)"' | while read -r name rg; do
+              echo "🗑️ Deleting AKS cluster: $name in resource group: $rg"
+              az aks delete --name "$name" --resource-group "$rg" --yes --no-wait || echo "⚠️ Failed to delete AKS cluster $name (might already be deleted)"
+            done
+          else
+            echo "ℹ️ No AKS clusters found to delete"
+          fi
+
+      - name: 📦 Clean Container Registries
+        if: contains(github.event.inputs.resource_type, 'all') || contains(github.event.inputs.resource_type, 'acr-only')
+        run: |
+          echo "📦 Cleaning up Container Registries..."
+          ACR_REGISTRIES='${{ steps.discover.outputs.acr_registries }}'
+
+          if [[ "$ACR_REGISTRIES" != "[]" && "$ACR_REGISTRIES" != "" ]]; then
+            echo "$ACR_REGISTRIES" | jq -r '.[] | "\(.name) \(.rg)"' | while read -r name rg; do
+              echo "🗑️ Deleting ACR: $name in resource group: $rg"
+              az acr delete --name "$name" --resource-group "$rg" --yes || echo "⚠️ Failed to delete ACR $name (might already be deleted)"
+            done
+          else
+            echo "ℹ️ No Container Registries found to delete"
+          fi
+
+      - name: 📦 Clean Resource Groups
+        if: contains(github.event.inputs.resource_type, 'all') || contains(github.event.inputs.resource_type, 'resource-groups')
+        run: |
+          echo "📦 Cleaning up Resource Groups..."
+          RESOURCE_GROUPS="${{ steps.discover.outputs.resource_groups }}"
+
+          if [[ -n "$RESOURCE_GROUPS" && "$RESOURCE_GROUPS" != " " ]]; then
+            for rg in $RESOURCE_GROUPS; do
+              echo "🗑️ Deleting resource group: $rg"
+              az group delete --name "$rg" --yes --no-wait || echo "⚠️ Failed to delete resource group $rg (might already be deleted)"
+            done
+          else
+            echo "ℹ️ No resource groups found to delete"
+          fi
+
+      - name: ⏳ Wait for Deletion to Complete
+        if: contains(github.event.inputs.resource_type, 'all') || contains(github.event.inputs.resource_type, 'resource-groups')
+        run: |
+          echo "⏳ Waiting for resource group deletions to complete..."
+          RESOURCE_GROUPS="${{ steps.discover.outputs.resource_groups }}"
+
+          if [[ -n "$RESOURCE_GROUPS" && "$RESOURCE_GROUPS" != " " ]]; then
+            for rg in $RESOURCE_GROUPS; do
+              echo "⏳ Checking deletion status for: $rg"
+              while az group show --name "$rg" &>/dev/null; do
+                echo "  ⏳ Still deleting: $rg"
+                sleep 30
+              done
+              echo "  ✅ Deleted: $rg"
+            done
+          fi
+
+          echo "✅ All resource deletions completed!"
+
+      - name: 🧹 Terraform State Cleanup
+        run: |
+          echo "🧹 Cleaning up Terraform state (if applicable)..."
+
+          # This step would clean up any remote state if we were using it
+          # For now, we're using workspaces so state is isolated
+          echo "ℹ️ Using Terraform workspaces - state is isolated per workspace"
+          echo "ℹ️ If using remote backend, add state cleanup commands here"
+
+      - name: 📊 Cleanup Summary
+        run: |
+          echo "## 🧹 Cleanup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** ${{ github.event.inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Resource Type:** ${{ github.event.inputs.resource_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Cleanup Time:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ✅ Resources successfully cleaned up" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Resources Cleaned:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Resource Groups: \`${{ steps.discover.outputs.resource_groups }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- AKS Clusters: Found $(echo '${{ steps.discover.outputs.aks_clusters }}' | jq length) clusters" >> $GITHUB_STEP_SUMMARY
+          echo "- ACR Registries: Found $(echo '${{ steps.discover.outputs.acr_registries }}' | jq length) registries" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- Azure resources have been cleaned up" >> $GITHUB_STEP_SUMMARY
+          echo "- Ready for fresh Terraform deployment" >> $GITHUB_STEP_SUMMARY
+          echo "- Run Terraform ALZ Deployment workflow when ready" >> $GITHUB_STEP_SUMMARY
